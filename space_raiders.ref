@@ -1,0 +1,7 @@
+;
+; SkoolKit ref file for Space Raiders
+;
+
+[Game]
+Game=Space Raiders
+Logo=#SCR1,3,11,26,4(/images/logo)
