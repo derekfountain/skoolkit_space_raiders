@@ -5,3 +5,12 @@
 [Game]
 Game=Space Raiders
 Logo=#SCR1,3,11,26,4(/images/logo)
+
+[Fact:Assembler code]
+There are quite a few text messages in the code, like "Stack overflow, try more P switches",
+"Fatal error(s)" and "REPT/IRP/IRPC/MACRO".
+
+These appear to come from ASM.COM:
+  https://www.iee.et.tu-dresden.de/~kc-club/09/RUBRIK23.HTM
+which is a CP/M assembler, and was presumably used to build
+the production binary.

@@ -992,7 +992,8 @@ b22196 DEFB 0,126,12,60,24,0,0,0
  23276 DEFB 15,15,15,15,15,15,15,15
  23284 DEFB 15,15,15,15,15,15,15,15
  23292 DEFB 15,15,15
-;End of loading screen
+
+; End of loading screen
 b23295 DEFB 15
 
 i23296
@@ -1168,12 +1169,15 @@ b24615 DEFB 0,114,121,230,128
  24620 DEFB 194,28,115,58,246,140,230,128
  24628 DEFB 202,39,115,205,0,0,0,0
  24636 DEFB 0,0
- 24638 DEFB 0        ; Player ship pos, X
- 24639 DEFB 0        ;
- 24640 DEFB 0        ; Player ship adjustment, -1, 0 or +1
- 24641 DEFB 0,0,0,0
- 24644 DEFB 115,25,235,201,205,251,114,58
- 24652 DEFB 0        ; Fire has been pressed flag
+; Player ship pos, X
+ 24638 DEFB 0                             ; Player ship pos, X
+; Player ship pos, Y
+ 24639 DEFB 0
+; Player ship position adjustment, -1, 0 or +1
+ 24640 DEFB 0                             ; Player ship adjustment, -1, 0 or +1
+ 24641 DEFB 0,0,0,115
+ 24645 DEFB 25,235,201,205,251,114,58
+ 24652 DEFB 0
  24653 DEFB 0
 
 ; Game initialisation data
@@ -1204,8 +1208,7 @@ c24703 DI            ; start here
  24707 CALL 32287    ; Clear screen pixels
  24710 CALL 24989    ; ???
  24713 CALL 25034    ; Draw lives as ships on top row
-; This entry point is used by the routine at #R24919.
-; Top of game loop?
+; This entry point is used by the routine at #R24919. Top of game loop?
 *24716 CALL 24835    ;
  24719 CALL 24806    ;
  24722 CALL 27030    ;
@@ -1262,6 +1265,7 @@ c24795 LD A,(24794)  ;
 
 ; Reset game data
 ;
+; Used by the routine at #R24703.
 c24823 LD HL,24654   ; Initialisation data
  24826 LD DE,24605   ; Play data
  24829 LD BC,10      ; 10 bytes
@@ -1296,7 +1300,7 @@ c24868 LD A,(24653)  ;
  24872 JR NZ,24880   ;
  24874 LD A,(24605)  ; Load A with speed factor
  24877 CALL 24908    ; Busy wait a multiple of 'A' states
-*24880 LD A,(24640)  ;
+*24880 LD A,(24640)  ; Player ship position adjustment, -1, 0 or 1
  24883 OR A          ;
  24884 JR NZ,24892   ;
  24886 LD A,(24606)  ;
@@ -1308,31 +1312,32 @@ c24868 LD A,(24653)  ;
  24902 CALL 24908    ;
  24905 JP 24737      ;
 
-; Pause
+; delay_ms (approx)
 ;
-; Busy wait routine, pauses about 13,000 * 'A' Ts
+; Busy wait routine, pauses around 4360 * 'A' Ts. One iteration is about 1.25ms on the
+; 3.5MHz Z80.
 ;
-; A:Number of 13,000Ts to spin for
+; I:A Number of iterations to spin for
 c24908 LD B,A        ;
-*24909 PUSH BC       ;
- 24910 LD B,0        ; {256 NOPs
-*24912 NOP           ;  4 Ts
- 24913 DJNZ 24912    ;  13Ts = ~13,000 Ts}
+*24909 PUSH BC       ; 11 Ts
+ 24910 LD B,0        ; {256 NOPs 4 Ts 13Ts = ~4352 Ts
+*24912 NOP           ;
+ 24913 DJNZ 24912    ; }
  24915 POP BC        ;
  24916 DJNZ 24909    ;
  24918 RET           ;
 
 ; Count up to 7, no higher
 ;
-; Increments the number at 24614 up to 7, but no higher.
-; Used by the routine at #R24703.
+; Increments the number at 24614 up to 7, but no higher. Used by the routine at
+; #R24703.
 c24919 LD A,(24614)  ;
  24922 INC A         ;
  24923 CP 8          ;
  24925 JR NZ,24928   ;
  24927 DEC A         ;
 *24928 LD (24614),A  ;
- 24931 JP 24716      ;
+ 24931 JP 24716      ; Jump back into game loop???
 
 ; Unused
 s24934 DEFS 1
@@ -1403,25 +1408,25 @@ c25034 LD DE,16384   ; Select 0th row
  25037 CALL 26004    ; Clear it
  25040 LD A,(24611)  ; Pick up number of lives remaining
  25043 DEC A         ; We're going to draw one fewer than that
- 25044 JR Z,25091    ; {Zero or negative lives
- 25046 JP M,25091    ; means ... something}
+ 25044 JR Z,25091    ; {Zero or negative lives means ... something
+ 25046 JP M,25091    ; }
  25049 LD (25033),A  ; ???
- 25052 LD DE,(24638) ;
+ 25052 LD DE,(24638) ; Player ship pos, X, but why 16 bits???
  25056 PUSH DE       ;
  25057 XOR A         ;
  25058 LD (24639),A  ;
  25061 LD A,72       ;
- 25063 LD (24638),A  ;
+ 25063 LD (24638),A  ; Player ship pos, X
 *25066 CALL 26965    ; Draw a player ship and move it into position
- 25069 LD A,(24638)  ;
+ 25069 LD A,(24638)  ; Player ship pos, X
  25072 ADD A,24      ;
- 25074 LD (24638),A  ;
+ 25074 LD (24638),A  ; Player ship pos, X
  25077 LD A,(25033)  ;
  25080 DEC A         ;
  25081 LD (25033),A  ;
  25084 JR NZ,25066   ;
  25086 POP DE        ;
- 25087 LD (24638),DE ;
+ 25087 LD (24638),DE ; Player ship pos, X, but why 16 bits?
 *25091 CALL 25011    ;
 ; This entry point is used by the routine at #R24703.
 *25094 LD HL,(24603) ;
@@ -1503,9 +1508,9 @@ c25160 CALL 32302    ;
  25214 DJNZ 25200    ;
 ; Game over, wait for fire to be pressed
 *25216 CALL 26587    ; Read keyboard
- 25219 LD A,(24652)  ; {Has fire pressed flag gone true?
- 25222 OR A          ;  If so, loop back and 
-*25223 JR Z,25216    ;  read the keyboard again}
+ 25219 LD A,(24652)  ; {Has fire pressed flag gone true? If so, loop back and
+ 25222 OR A          ; read the keyboard again
+*25223 JR Z,25216    ; }
  25225 JP 24703      ;
 
 ; Routine at 25228
@@ -1614,10 +1619,10 @@ c25442 LD A,(24653)  ;
  25538 LD (24653),A  ;
  25541 LD DE,16416   ; Row 1
  25544 JP 26004      ; Clear row
-*25547 LD A,1        ;
- 25549 CALL 31960    ;
- 25552 XOR A         ;
- 25553 CALL 31960    ;
+*25547 LD A,1        ; Mode clear
+ 25549 CALL 31960    ; Clear sprite
+ 25552 XOR A         ; Mode set
+ 25553 CALL 31960    ; Draw sprite
  25556 LD A,(24641)  ;
  25559 OR A          ;
  25560 RET Z         ;
@@ -1756,7 +1761,7 @@ c25749 CALL 32059    ;
  25762 RET C         ;
  25763 LD A,(24634)  ;
  25766 LD (25691),A  ;
- 25769 LD A,(24638)  ;
+ 25769 LD A,(24638)  ; Player ship pos, X
  25772 ADD A,7       ;
  25774 LD B,A        ;
  25775 LD A,(32057)  ;
@@ -1797,8 +1802,8 @@ c25749 CALL 32059    ;
 ;
 ; Used by the routine at #R25708.
 c25853 LD HL,25695   ;
- 25856 LD A,1        ;
- 25858 CALL 31960    ;
+ 25856 LD A,1        ; Mode clear
+ 25858 CALL 31960    ; Clear sprite
  25861 LD A,(IX+1)   ;
  25864 INC A         ;
  25865 CP 185        ;
@@ -1815,18 +1820,18 @@ c25853 LD HL,25695   ;
  25889 POP IX        ;
  25891 JP NZ,26033   ;
  25894 LD HL,25695   ;
- 25897 XOR A         ;
- 25898 JP 31960      ;
+ 25897 XOR A         ; Mode set
+ 25898 JP 31960      ; Draw sprite
 *25901 LD A,(IX+0)   ;
  25904 LD B,A        ;
- 25905 LD A,(24638)  ;
+ 25905 LD A,(24638)  ; Player ship pos, X
  25908 CP B          ;
  25909 JR NC,25994   ;
  25911 ADD A,19      ;
  25913 CP B          ;
  25914 JR C,25994    ;
  25916 XOR A         ;
- 25917 LD (24638),A  ;
+ 25917 LD (24638),A  ; Player ship pos, X
  25920 LD B,8        ;
 *25922 LD A,(23624)  ;
  25925 ADD A,8       ;
@@ -1873,13 +1878,17 @@ c25994 LD A,(IX+1)   ;
  25998 JP 25875      ;
 
 ; Clear bottom character row
+;
+; Used by the routines at #R25853 and #R26225.
 c26001 LD DE,20704   ; Top scan of bottom row of the screen, where the ship is
+
 ; Clear one character row
 ;
+; Used by the routines at #R25034, #R25442, #R25592, #R30995 and #R31327.
 c26004 LD C,8        ; We're going to clear 8 scans at screen address in DE
  26006 XOR A         ;
-*26007 LD B,32       ; {Screen width is 32 bytes,
- 26009 PUSH DE       ; write zero into each byte
+*26007 LD B,32       ; {Screen width is 32 bytes, write zero into each byte
+ 26009 PUSH DE       ;
 *26010 LD (DE),A     ;
  26011 INC DE        ;
  26012 DJNZ 26010    ;
@@ -1897,8 +1906,8 @@ c26020 LD A,(IX+1)   ;
 *26023 OR A          ;
  26024 RET Z         ;
  26025 LD HL,25695   ;
- 26028 LD A,1        ;
- 26030 CALL 31960    ;
+ 26028 LD A,1        ; Mode clear
+ 26030 CALL 31960    ; Clear sprite
 ; This entry point is used by the routine at #R25853.
 *26033 LD (IX+1),0   ;
  26037 RET           ;
@@ -2196,9 +2205,9 @@ c26566 CALL 26587    ; Read keyboard
  26572 LD A,(24641)  ;
  26575 OR A          ;
  26576 JP NZ,26916   ;
- 26579 LD A,(24652)  ; {Has fire been pressed?
- 26582 OR A          ;  Return if
- 26583 RET Z         ;  not}
+ 26579 LD A,(24652)  ; {Has fire been pressed? Return if not
+ 26582 OR A          ;
+ 26583 RET Z         ; }
  26584 JP 26883      ;
 
 ; Keypress detection
@@ -2218,7 +2227,8 @@ c26587 LD BC,65278   ; 0xFEFE - matrix SHIFT, Z, X, C, V
  26602 BIT 1,E       ; Z (left) pressed?
  26604 JR Z,26610    ; Skip looking for other key (1) if yes
  26606 BIT 0,D       ; 1 (left) pressed?
- 26608 JR NZ,26614   ; Neither left key is pressed so skip to look for right pressed
+ 26608 JR NZ,26614   ; Neither left key is pressed so skip to look for right
+                     ; pressed
 ; Move left is pressed
 *26610 OR A          ; Is player already at leftmost position?
  26611 JR Z,26614    ; Yes, can't move left then
@@ -2227,14 +2237,15 @@ c26587 LD BC,65278   ; 0xFEFE - matrix SHIFT, Z, X, C, V
 *26614 BIT 2,E       ; X (right) pressed?
  26616 JR Z,26622    ; Skip looking for other key (2) if yes
  26618 BIT 1,D       ; 2 (left) pressed?
- 26620 JR NZ,26627   ; Neither right key is pressed so skip to look for fire pressed
+ 26620 JR NZ,26627   ; Neither right key is pressed so skip to look for fire
+                     ; pressed
 ; Move right is pressed
 *26622 CP 235        ; Is player already at rightmost position?
  26624 JR Z,26627    ; Yes, can't move right then
  26626 INC C         ; Move one pixel right
 ; C contains position adjustment, -1 or +1
-*26627 LD A,C        ; {Load player ship position
- 26628 LD (24640),A  ;  adjustment}
+*26627 LD A,C        ; {Load player ship position adjustment, -1, 0 or 1
+ 26628 LD (24640),A  ; }
 ; Now check for fire being pressed
  26631 LD BC,32766   ; 0x7FFE - matrix SPACE, SYM SHFT, M, N, B
  26634 IN E,(C)      ; Read port into E
@@ -2242,11 +2253,12 @@ c26587 LD BC,65278   ; 0xFEFE - matrix SHIFT, Z, X, C, V
  26638 JR Z,26654    ; Jump to fire-pressed routine if yes
  26640 BIT 4,D       ; D still holds number keys state, 5 pressed?
  26642 JR Z,26654    ; Jump to fire-pressed routine if yes
-; If we drop to here fire is not pressed, B isn't pressed, so we set flags and return
+; If we drop to here fire is not pressed, B isn't pressed, so we set flags and
+; return
  26644 LD A,1        ; {Set fire released flag to 1
- 26646 LD (26721),A  ;  }
+ 26646 LD (26721),A  ; }
 *26649 XOR A         ; {Set fire pressed flag to 0
- 26650 LD (24652),A  ;  }
+ 26650 LD (24652),A  ; }
  26653 RET           ;
 ; Fire is pressed, check B which is a secret button to freeze your bullet
 *26654 BIT 4,E       ; E still contains Z-B keys state, B pressed?
@@ -2255,9 +2267,9 @@ c26587 LD BC,65278   ; 0xFEFE - matrix SHIFT, Z, X, C, V
  26658 POP BC        ; {Restore and return
  26659 RET           ; }
 ; Fire is pressed, B is not pressed
-*26660 LD A,(26721)  ; {Is fire released flag set to 0?
- 26663 OR A          ;  Jump back and clear fire pressed flag
- 26664 JP Z,26649    ;  if so}
+*26660 LD A,(26721)  ; {Is fire released flag set to 0? Jump back and clear
+ 26663 OR A          ; fire pressed flag if so
+ 26664 JP Z,26649    ; }
  26667 LD (24652),A  ; Set fire pressed flag to 1
  26670 XOR A         ; {Set released flag to 0
  26671 LD (26721),A  ; }
@@ -2266,28 +2278,27 @@ c26587 LD BC,65278   ; 0xFEFE - matrix SHIFT, Z, X, C, V
 ; Called from ship drawing?
 ;
 ; Used by the routines at #R26566 and #R26965.
-c26675 LD A,(24640)  ; Pick up value at 24640, primed by caller
- 26678 OR A          ; Return if it's 0
- 26679 RET Z         ;
- 26680 JP P,26684    ; Skip the zeroing if number of bits set in A is even ???
- 26683 XOR A         ; Zero 0
-*26684 LD IX,24638   ; IX points here, ??? what it is
- 26688 CALL 26712    ; Set HL to 26722 or 26796
- 26691 LD A,1        ;
- 26693 CALL 31960    ;
- 26696 XOR A         ;
- 26697 CALL 31960    ;
+c26675 LD A,(24640)  ; Player ship position adjustment, -1, 0 or 1
+ 26678 OR A          ; {Ship doesn't need to move, just return
+ 26679 RET Z         ; }
+ 26680 JP P,26684    ; {Set A to 0 if there's an odd number of bits. I think
+ 26683 XOR A         ; this is a sanity check?}
+*26684 LD IX,24638   ; IX points to player ship pos, X
+ 26688 CALL 26712    ; Set HL to 26722 if A != 0, or 26796 if A == 0
+ 26691 LD A,1        ; Mode clear
+ 26693 CALL 31960    ; Clear sprite
+ 26696 XOR A         ; Mode set
+ 26697 CALL 31960    ; Draw sprite
  26700 LD A,(24640)  ;
  26703 LD B,A        ;
- 26704 LD A,(24638)  ;
+ 26704 LD A,(24638)  ; Player ship pos, X
  26707 ADD A,B       ;
- 26708 LD (24638),A  ;
+ 26708 LD (24638),A  ; Player ship pos, X
  26711 RET           ;
 
 ; Set HL to 26722 or 26796
 ;
-; If A isn't zero, return 26722 in HL
-; If A is zero, return 26796 in HL.
+; If A isn't zero, return 26722 in HL If A is zero, return 26796 in HL.
 c26712 LD HL,26722   ;
  26715 OR A          ;
  26716 RET NZ        ;
@@ -2296,33 +2307,41 @@ c26712 LD HL,26722   ;
 
 ; Keypress routine's fire-released flag
 ;
-; This is set 1 when the fire key is released. It's set 0 when the
-; fire key is pressed. If it's found to be 0 when the fire key is
-; read as pressed the fire-pressed flag is held at 0. In order words
-; the fire-pressed flag will only go true when this is 1, and it's
-; only set 1 when the fire key is found to be released
+; This is set 1 when the fire key is released. It's set 0 when the fire key is
+; pressed. If it's found to be 0 when the fire key is read as pressed the
+; fire-pressed flag is held at 0. In order words the fire-pressed flag will
+; only go true when this is 1, and it's only set 1 when the fire key is found
+; to be released
 b26721 DEFB 0        ; Fire released flag, local to keypress routine
 
-; Data block at 26722
+; Player ship sprite data. x,y pairs, each giving a single pixel
+; Pixels to clear as sprite moves left or right.
 b26722 DEFB 10,0,9,1,1,2,9
  26729 DEFB 2,19,2,1,3,9,3,19
  26737 DEFB 3,1,4,6,4,18,4,1
  26745 DEFB 5,1,6,6,6,18,6,1
- 26753 DEFB 7,7,7,19,7,255,11,0
+ 26753 DEFB 7,7,7,19,7,255
+; Other direction
+ 26759 DEFB 11,0
  26761 DEFB 12,1,2,2,12,2,20,2
  26769 DEFB 2,3,12,3,20,3,3,4
  26777 DEFB 15,4,20,4,20,5,3,6
  26785 DEFB 15,6,20,6,2,7,14,7
- 26793 DEFB 20,7,255,10,0,11,1,1
+ 26793 DEFB 20,7,255
+; Same as above, but flipped??? Not sure
+b26796 DEFB 10,0,11,1,1
  26801 DEFB 2,11,2,19,2,1,3,11
  26809 DEFB 3,19,3,2,4,14,4,19
  26817 DEFB 4,19,5,2,6,14,6,19
  26825 DEFB 6,1,7,13,7,19,7,255
+; Other direction
  26833 DEFB 9,0,8,1,0,2,8,2
  26841 DEFB 18,2,0,3,8,3,18,3
  26849 DEFB 0,4,5,4,17,4,0,5
  26857 DEFB 0,6,5,6,17,6,0,7
- 26865 DEFB 6,7,18,7,255,0,0,0
+ 26865 DEFB 6,7,18,7,255
+; This looks like a vertical line, might be a bullet?
+ 26871 DEFB 0,0,0
  26873 DEFB 1,0,2,0,3,0,4,0
  26881 DEFB 5,255
 
@@ -2337,7 +2356,7 @@ c26883 CALL 31987    ; Sound burbler
  26892 NOP           ;
  26893 LD A,1        ;
  26895 LD (24641),A  ;
- 26898 LD A,(24638)  ;
+ 26898 LD A,(24638)  ; Player ship pos, X
  26901 LD IX,24642   ;
  26905 ADD A,10      ;
  26907 LD (IX+0),A   ;
@@ -2349,8 +2368,8 @@ c26883 CALL 31987    ; Sound burbler
 ; Used by the routine at #R26566.
 c26916 LD IX,24642   ;
  26920 LD HL,26870   ;
- 26923 LD A,1        ;
- 26925 CALL 31960    ;
+ 26923 LD A,1        ; Mode clear
+ 26925 CALL 31960    ; Clear sprite
  26928 LD A,(IX+1)   ;
  26931 SUB 4         ;
  26933 CP 4          ;
@@ -2358,16 +2377,16 @@ c26916 LD IX,24642   ;
  26937 LD (IX+1),A   ;
 ; This entry point is used by the routine at #R26883.
 *26940 LD HL,26870   ;
- 26943 XOR A         ;
- 26944 JP 31960      ;
+ 26943 XOR A         ; Mode set
+ 26944 JP 31960      ; Draw sprite
 
 ; Routine at 26947
 ;
 ; Used by the routines at #R26225, #R26538 and #R26541.
 c26947 LD IX,24642   ;
  26951 LD HL,26870   ;
- 26954 LD A,1        ;
- 26956 CALL 31960    ;
+ 26954 LD A,1        ; Mode clear
+ 26956 CALL 31960    ; Clear sprite
 ; This entry point is used by the routine at #R26916.
 *26959 XOR A         ;
  26960 LD (24641),A  ;
@@ -2378,16 +2397,16 @@ s26964 DEFS 1
 
 ; Draw player ship and scroll it into position.
 ;
-; Used by the routine which draws lives remaining at the top,
-; and when the a new life appears at the bottom after dying
+; Used by the routine which draws lives remaining at the top, and when the a
+; new life appears at the bottom after dying
 c26965 PUSH IX       ; Set by one of the subroutines, ???
  26967 PUSH HL       ;
- 26968 LD A,255      ; {Set up adjustment of -1,
- 26970 LD (24640),A  ;  which means 1 pixel left}
- 26973 LD A,(24638)  ;
+ 26968 LD A,255      ; {Set up adjustment of -1, which means 1 pixel left
+ 26970 LD (24640),A  ; }
+ 26973 LD A,(24638)  ; Player ship pos, X
  26976 LD (26964),A  ;
  26979 ADD A,40      ;
- 26981 LD (24638),A  ;
+ 26981 LD (24638),A  ; Player ship pos, X
 *26984 CALL 26675    ;
  26987 CALL 31987    ; Sound burbler
  26990 LD BC,15      ;
@@ -2727,7 +2746,10 @@ b28407 DEFB 205,253,91,185,202,235,129,254
  28551 DEFB 241,195,154,127,33,118,130,195
  28559 DEFB 124,94
 
-; Message at 28561
+; This comes from ASM.COM:
+; https://www.iee.et.tu-dresden.de/~kc-club/09/RUBRIK23.HTM which is a CP/M
+; assembler. Most of these messages appear to come from it, so quite a lot of
+; the tool appears to be in here.
 t28561 DEFM "?Stack overflow, try more P switches"
 
 ; Data block at 28597
@@ -3321,7 +3343,7 @@ c31303 LD BC,(31109) ; Pick up cy from here
  31315 ADD A,L       ;
  31316 LD L,A        ;
  31317 JR NC,31320   ;
- 31319 INC H         ; 
+ 31319 INC H         ;
 *31320 LD A,(HL)     ; Pick up INK colour from (HL)
  31321 LD E,A        ; E is INK colour
  31322 LD D,64       ; 2 full rows
@@ -3479,227 +3501,167 @@ c31527 LD A,(24610)  ;
 *31632 XOR A         ;
  31633 RET           ;
 
-; Routine at 31634
-c31634 CALL 31922    ;
- 31637 OR (HL)       ;
- 31638 LD (HL),A     ;
+; Set pixel
+;
+; Sets the screen pixel at x,y
+; .
+; This is the entry in the jump table handled by the routine at 32374 when that
+; code is called with A=0
+;
+; I:B ypos
+; I:C xpos
+c31634 CALL 31922    ; pxy2saddr of B=ypos, C=xpos
+ 31637 OR (HL)       ; Pick up screen byte
+ 31638 LD (HL),A     ; Merge in the required pixel
  31639 RET           ;
 
-; Routine at 31640
+; Clear pixel
 ;
-; This is arrived at during the ship drawing code. It's in a jump table
-; alongside 3 functions.
+; Clears the screen pixel at x,y
+;.
+; This is the entry in the jump table handled by the routine at 32374 when that
+; code is called with A=1
 ;
-; Used by the routine at #R31527.
-c31640 CALL 31922    ;
- 31643 CPL           ;
- 31644 AND (HL)      ;
- 31645 LD (HL),A     ;
+; I:B ypos
+; I:C xpos
+c31640 CALL 31922    ; pxy2saddr of B=ypos, C=xpos
+ 31643 CPL           ; Invert pixel map
+ 31644 AND (HL)      ; Pick up screen byte
+ 31645 LD (HL),A     ; Merge out the required pixel
  31646 RET           ;
 
-; Data block at 31647
-b31647 DEFB 205,178,124,174,119,201
-
-; Routine at 31653
+; XOR pixel
 ;
-; Used by the routine at #R31527.
-c31653 CALL 31922    ;
- 31656 AND (HL)      ;
+; XORs the screen pixel at x,y
+;.
+; This is the entry in the jump table handled by the routine at 32374 when that
+; code is called with A=2
+;
+; I:B ypos
+; I:C xpos
+c31647 CALL 31922    ; pxy2saddr of B=ypos, C=xpos
+ 31650 XOR (HL)      ; Toggle screen bit
+ 31651 LD (HL),A     ; XOR in the required pixel
+ 31652 RET           ;
+
+; Clear screen byte but leave pixel
+;
+; Clears the screen byte containing the screen pixel at x,y, leaving the
+; indicated pixel on if it's already on, or off if it's already off.
+;.
+; This is the entry in the jump table handled by the routine at 32374 when that
+; code is called with A=3
+;
+; I:B ypos
+; I:C xpos
+c31653 CALL 31922    ; pxy2saddr of B=ypos, C=xpos
+ 31656 AND (HL)      ; Clear byte except the indicated pixel which is left
  31657 RET           ;
 
-; Data block at 31658
+; Screen address calculation table, used by px2saddr
 b31658 DEFB 128,64,32,16,8,4,2,1
- 31666 DEFB 0,8,16,24
-
-; Message at 31670
-t31670 DEFM " (08"
-
-; Data block at 31674
-b31674 DEFB 1,9,17,25
-
-; Message at 31678
-t31678 DEFM "!)19"
-
-; Data block at 31682
-b31682 DEFB 2,10,18,26
-
-; Message at 31686
-t31686 DEFM "\"*2:"
-
-; Data block at 31690
-b31690 DEFB 3,11,19,27,35
-
-; Message at 31695
-t31695 DEFM "+3;"
-
-; Data block at 31698
-b31698 DEFB 4,12,20,28
-
-; Message at 31702
-t31702 DEFM "$,4<"
-
-; Data block at 31706
-b31706 DEFB 5,13,21,29
-
-; Message at 31710
-t31710 DEFM "%-5="
-
-; Data block at 31714
-b31714 DEFB 6,14,22,30
-
-; Message at 31718
-t31718 DEFM "&.6>"
-
-; Data block at 31722
-b31722 DEFB 7,15,23,31
-
-; Message at 31726
-t31726 DEFM "'/7?"
-
-; Data block at 31730
-b31730 DEFB 64
-
-; Message at 31731
-t31731 DEFM "HPX"
-
-; Data block at 31734
-b31734 DEFB 96
-
-; Message at 31735
-t31735 DEFM "hpxAIQYaiqyBJRZbjrzCKS[cks"
-
-; Data block at 31761
-b31761 DEFB 123
-
-; Message at 31762
-t31762 DEFM "DLT"
-
-; Data block at 31765
-b31765 DEFB 92
-
-; Message at 31766
-t31766 DEFM "dlt"
-
-; Data block at 31769
-b31769 DEFB 124
-
-; Message at 31770
-t31770 DEFM "EMU]emu"
-
-; Data block at 31777
-b31777 DEFB 125
-
-; Message at 31778
-t31778 DEFM "FNV"
-
-; Data block at 31781
-b31781 DEFB 94
-
-; Message at 31782
-t31782 DEFM "fnv"
-
-; Data block at 31785
-b31785 DEFB 126
-
-; Message at 31786
-t31786 DEFM "GOW"
-
-; Data block at 31789
-b31789 DEFB 95
-
-; Message at 31790
-t31790 DEFM "gow"
-
-; Data block at 31793
-b31793 DEFB 127,128,136,144,152,160,168,176
- 31801 DEFB 184,129,137,145,153,161,169,177
- 31809 DEFB 185,130,138,146,154,162,170,178
- 31817 DEFB 186,131,139,147,155,163,171,179
- 31825 DEFB 187,132,140,148,156,164,172,180
- 31833 DEFB 188,133,141,149,157,165,173,181
- 31841 DEFB 189,134,142,150,158,166,174,182
- 31849 DEFB 190,135,143,151,159,167,175,183
- 31857 DEFB 191,0,8,16,24
-
-; Message at 31862
-t31862 DEFM " (08"
-
-; Data block at 31866
-b31866 DEFB 1,9,17,25
-
-; Message at 31870
-t31870 DEFM "!)19"
-
-; Data block at 31874
-b31874 DEFB 2,10,18,26
-
-; Message at 31878
-t31878 DEFM "\"*2:"
-
-; Data block at 31882
-b31882 DEFB 3,11,19,27,35
-
-; Message at 31887
-t31887 DEFM "+3;"
-
-; Data block at 31890
-b31890 DEFB 132,140,148,156,164,172,180,188
+ 31666 DEFB 0,8,16,24,32,40,48,56
+ 31674 DEFB 1,9,17,25,33,41,49,57
+ 31682 DEFB 2,10,18,26,34,42,50,58
+ 31690 DEFB 3,11,19,27,35,43,51,59
+ 31698 DEFB 4,12,20,28,36,44,52,60
+ 31706 DEFB 5,13,21,29,37,45,53,61
+ 31714 DEFB 6,14,22,30,38,46,54,62
+ 31722 DEFB 7,15,23,31,39,47,55,63
+ 31730 DEFB 64,72,80,88,96,104,112,120
+ 31738 DEFB 65,73,81,89,97,105,113,121
+ 31746 DEFB 66,74,82,90,98,106,114,122
+ 31754 DEFB 67,75,83,91,99,107,115,123
+ 31762 DEFB 68,76,84,92,100,108,116,124
+ 31770 DEFB 69,77,85,93,101,109,117,125
+ 31778 DEFB 70,78,86,94,102,110,118,126
+ 31786 DEFB 71,79,87,95,103,111,119,127
+ 31794 DEFB 128,136,144,152,160,168,176,184
+ 31802 DEFB 129,137,145,153,161,169,177,185
+ 31810 DEFB 130,138,146,154,162,170,178,186
+ 31818 DEFB 131,139,147,155,163,171,179,187
+ 31826 DEFB 132,140,148,156,164,172,180,188
+ 31834 DEFB 133,141,149,157,165,173,181,189
+ 31842 DEFB 134,142,150,158,166,174,182,190
+ 31850 DEFB 135,143,151,159,167,175,183,191
+ 31858 DEFB 0,8,16,24,32,40,48,56
+ 31866 DEFB 1,9,17,25,33,41,49,57
+ 31874 DEFB 2,10,18,26,34,42,50,58
+ 31882 DEFB 3,11,19,27,35,43,51,59
+ 31890 DEFB 132,140,148,156,164,172,180,188
  31898 DEFB 133,141,149,157,165,173,181,189
  31906 DEFB 134,142,150,158,166,174,182,190
  31914 DEFB 135,143,151,159,167,175,183,191
 
-; Routine at 31922
+; pxy2saddr
 ;
+; Calculate the address of the display file byte and the pixel
+; within it of the x,y pixel coords in C and B.
+; .
 ; Used by the routines at #R31634, #R31640 and #R31653.
-c31922 LD HL,31666   ;
- 31925 LD E,B        ;
- 31926 LD D,0        ;
- 31928 ADD HL,DE     ;
- 31929 LD H,(HL)     ;
- 31930 LD L,C        ;
- 31931 AND A         ;
- 31932 RR H          ;
- 31934 RR L          ;
- 31936 SCF           ;
- 31937 RR H          ;
- 31939 RR L          ;
- 31941 AND A         ;
- 31942 RR H          ;
- 31944 RR L          ;
- 31946 EX DE,HL      ;
- 31947 LD HL,31658   ;
- 31950 LD A,C        ;
- 31951 AND 7         ;
- 31953 LD C,A        ;
- 31954 LD B,0        ;
- 31956 ADD HL,BC     ;
- 31957 LD A,(HL)     ;
- 31958 EX DE,HL      ;
+;
+; I:B ypos in pixels,
+; I:C xpos in pixels
+; O:HL display file byte address
+; O:A  display file byte's pixel
+c31922 LD HL,31666   ; Table of clever values
+ 31925 LD E,B        ; {DE is 8 bit y pos
+ 31926 LD D,0        ; }
+ 31928 ADD HL,DE     ; Add offset to the table
+ 31929 LD H,(HL)     ; H comes from that table location
+ 31930 LD L,C        ; L is xpos
+ 31931 AND A         ; Clear carry
+ 31932 RR H          ; {HL = HL / 2
+ 31934 RR L          ; }
+ 31936 SCF           ; Set carry, this primes the 0x40.. display file address
+ 31937 RR H          ; {HL = HL /2
+ 31939 RR L          ; }
+ 31941 AND A         ; Clear carry
+ 31942 RR H          ; {HL = HL / 2
+ 31944 RR L          ; }
+ 31946 EX DE,HL      ; Result into DE for the moment
+ 31947 LD HL,31658   ; Divider table
+ 31950 LD A,C        ; xpos
+ 31951 AND 7         ; Bottom 3 bits - 0 to 7
+ 31953 LD C,A        ; {BC = offset into divider table
+ 31954 LD B,0        ; }
+ 31956 ADD HL,BC     ; Find divider table location
+ 31957 LD A,(HL)     ; A = pixel in the byte
+ 31958 EX DE,HL      ; Restore display file address into HL
  31959 RET           ;
 
-; Routine at 31960
+; Draw or undraw sprite
 ;
+; Draws or clears a sprite using a sequence of pixel sets or clears.
+; Which would be an odd way of doing it.
+;.
 ; Used by the routines at #R25442, #R25853, #R26020, #R26675, #R26916 and
 ; #R26947.
-c31960 CALL 32374    ; Prime jump at 32362
-*31963 LD A,(HL)     ;
- 31964 INC HL        ;
+;
+; I:A Mode for pixel (0=set,1=clear,2=XOR,3=ClearByte)
+; I:HL Sprite data, list of x,y offset pairs, 0xFF to end
+; I:IX Pointer to xpos,ypos screen location (chars)
+c31960 CALL 32374    ; Prime jump at 32362, consumes A
+*31963 LD A,(HL)     ; {Pick up next byte in sequence.
+ 31964 INC HL        ;  x_offset
  31965 OR A          ;
- 31966 RET M         ;
- 31967 ADD A,(IX+0)  ;
- 31970 LD C,A        ;
- 31971 LD A,(HL)     ;
- 31972 INC HL        ;
- 31973 ADD A,(IX+1)  ;
- 31976 LD B,A        ;
+ 31966 RET M         ;  End if negative number}
+ 31967 ADD A,(IX+0)  ; IX+0 points to xpos
+ 31970 LD C,A        ; C=xpos + x_offset
+ 31971 LD A,(HL)     ; {Pick up next byte in sequence.
+ 31972 INC HL        ;  y_offset}
+ 31973 ADD A,(IX+1)  ; IX+1 points to ypos
+ 31976 LD B,A        ; B=ypos + y_offset
  31977 PUSH HL       ;
- 31978 CALL 32362    ; Call to primed jump code
+ 31978 CALL 32362    ; Update pixel at C,B according to input mode
  31981 POP HL        ;
- 31982 JR 31963      ;
+ 31982 JR 31963      ; Go back for next pixel in the sprite data
 
-
+; Unused
 s31984 DEFS 2        ; Temp store for DE while sound burbler runs
-b31986 DEFB 1        ; Beeper's border protection value is stored here
+
+; Data block at 31986
+b31986 DEFB 0        ; Beeper's border protection value is stored here
 
 ; Sound burbler
 ;
@@ -3723,15 +3685,15 @@ c31987 LD (31984),DE ; Save DE somewhere
  32005 LD (31986),A  ; Save result, it's picked up by the beeper routine
 *32008 LD A,(DE)     ; DE was pointing to something interesting
  32009 INC DE        ; Next byte, whatever it is
- 32010 OR A          ; {If it's zero
- 32011 JR Z,32025    ; we're done}
+ 32010 OR A          ; {If it's zero we're done
+ 32011 JR Z,32025    ; }
  32013 LD L,A        ; Low byte from (DE) into L, it's a count of something
  32014 LD A,(DE)     ; High byte from (DE) into A, it's the pitch
  32015 INC DE        ; Move on ready for next one
  32016 LD C,A        ; Pitch goes into C
 *32017 CALL 32034    ; Toggle beeper bit according to pitch
- 32020 DEC L         ; {Reduce the counter
- 32021 JR NZ,32017   ;  and do it again}
+ 32020 DEC L         ; {Reduce the counter and do it again
+ 32021 JR NZ,32017   ; }
  32023 JR 32008      ; Next note, or whatever it is
 *32025 POP HL        ; Restore
  32026 POP AF        ; Restore
@@ -3742,24 +3704,23 @@ c31987 LD (31984),DE ; Save DE somewhere
 
 ; Toggle speaker bit, causes a click based on the given pitch
 ;
-; This calls forward into itself as a sort of subroutine. That does the
-; pitch pause, then toggles the bit, then returns. A small delay, then
-; it does it again - pitch pause, then toggle the bit back again.
+; This calls forward into itself as a sort of subroutine. That does the pitch
+; pause, then toggles the bit, then returns. A small delay, then it does it
+; again - pitch pause, then toggle the bit back again.
 ;
 ; Input:C Pitch
-;
 c32034 LD A,(31986)  ; This must be picking up a saved border colour?
- 32037 CALL 32044    ; Call forward to the toggle routine
-                     ; then drop through and do it again
- 32040 LD B,4        ; { Small delay
-*32042 DJNZ 32042    ;   times 4}
+ 32037 CALL 32044    ; Call forward to the toggle routine then drop through and
+                     ; do it again
+ 32040 LD B,4        ; {Small delay times 4
+*32042 DJNZ 32042    ; }
 *32044 LD B,C        ; C contains a delay factor
 *32045 NOP           ; 4Ts
  32046 NOP           ; 4Ts
  32047 NOP           ; 4Ts
  32048 DJNZ 32045    ; 12*C Ts delay
- 32050 XOR 16        ; { Toggle speaker
- 32052 OUT (254),A   ; bit }
+ 32050 XOR 16        ; {Toggle speaker bit
+ 32052 OUT (254),A   ; }
  32054 RET           ;
 
 ; Data block at 32055
@@ -3893,8 +3854,8 @@ c32287 LD HL,16384   ; Start of screen
  32293 LD B,A        ;
 *32294 LD (HL),A     ; Load zero into screen location
  32295 INC HL        ;
- 32296 DJNZ 32294    ; {Clear 256 bytes
- 32298 DEC C         ; 24 times}
+ 32296 DJNZ 32294    ; {Clear 256 bytes 24 times
+ 32298 DEC C         ; }
  32299 JR NZ,32294   ;
  32301 RET           ;
 
@@ -3954,34 +3915,40 @@ c32343 LD A,B        ;
  32354 LD A,C        ; Pick up cx from input parameter
  32355 ADD A,L       ; {Add as offset
  32356 LD L,A        ; }
- 32357 RET NC        ; {If cx was greater than 32
- 32358 INC H         ;  move to next row}
+ 32357 RET NC        ; {If cx was greater than 32 move to next row
+ 32358 INC H         ; }
  32359 RET           ; Result address in HL
 
-; A 2 byte entry from the table at 32362 is copied into here
-; by the ship drawing routine. It's used as a destination for
-; the jump at 32362
+; A 2 byte entry from the table at 32362 is copied into here by the ship
+; drawing routine. It's used as a destination for the jump at 32362
 s32360 DEFS 2
 
-; Jump to pre-selected routine held at address 32360.
+; Update pixel
 ;
+; Jump to pre-selected display update routine primed at address 32360.
+; This will set, clear, XOR or clear-byte of xpos,ypos in C and B
+;
+; I:B ypos
+; I:C xpos
 c32362 LD HL,(32360) ;
  32365 JP (HL)       ;
 
-; This appears to be a jump table with 4 entries.
+; This is a jump table with 4 entries.
 ;
 ; 0x7B92, 0x7B98, 0x7B9F, 0x7BA5
 ;  31634   31640   31647   31653
 b32366 DEFB 146,123,152,123,159,123,165,123
 
-; Prime jump code at 32362
+; Prime pixel update
 ;
-; Select an entry from the jump table at 32366, copy the entry to the
-; 2 bytes of storage at 32360. This primes the jump code at 32362.
-; .
-; ??? Dunno what it actually does though.
+; Sets up a call to 32362 ready to update a screen pixel
+; according to the mode passed in here.
+;.
+; Select an entry from the jump table at 32366, copy the entry to the 2 bytes
+; of storage at 32360. This primes the jump code at 32362 with
+; A=0 31634 (set routine) A=1 31640 (clear) A=2 31647 (xor) A=3 31653 (clear byte)
 ;
-; Input:A 0 to 3, which pair to copy
+; Input:A 0 to 3, mode. 0=Set, 1=Clear, 2=XOR, 3=Clear byte
 c32374 PUSH HL       ; Save regs
  32375 PUSH BC       ;
  32376 AND 3         ; Bottom 2 bits only
@@ -3992,25 +3959,26 @@ c32374 PUSH HL       ; Save regs
  32385 ADD HL,BC     ; Select the entry from input value into HL
  32386 LD BC,32360   ; 2 byte result goes here
  32389 LD A,(HL)     ; {Copy 2 bytes from jump table entry to result
- 32390 LD (BC),A     ; 
- 32391 INC HL        ; 
+ 32390 LD (BC),A     ;
+ 32391 INC HL        ;
  32392 INC BC        ;
- 32393 LD A,(HL)     ; 
- 32394 LD (BC),A     ;}
+ 32393 LD A,(HL)     ;
+ 32394 LD (BC),A     ; }
  32395 POP BC        ; Restore regs
  32396 POP HL        ;
  32397 RET           ;
 
 ; Multiply A by 8, then add (23606)
 ;
+; Used by the routine at #R32307.
 c32398 PUSH BC       ;
- 32399 LD L,A        ;{A into HL
- 32400 LD H,0        ;}
+ 32399 LD L,A        ; {A into HL
+ 32400 LD H,0        ; }
  32402 ADD HL,HL     ; x2
  32403 ADD HL,HL     ; x4
  32404 ADD HL,HL     ; x8
- 32405 LD BC,(23606) ; {Add on the value
- 32409 ADD HL,BC     ;  found here}
+ 32405 LD BC,(23606) ; {Add on the value found here
+ 32409 ADD HL,BC     ; }
  32410 POP BC        ;
  32411 RET           ; Result in HL
 
