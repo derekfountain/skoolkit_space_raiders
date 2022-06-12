@@ -1,0 +1,6 @@
+*~
+*.out
+space_raiders.asm
+space_raiders.orig.tap
+notebook.txt
+space_raiders/*

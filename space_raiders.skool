@@ -996,7 +996,8 @@ b22196 DEFB 0,126,12,60,24,0,0,0
 ; End of loading screen
 b23295 DEFB 15
 
-i23296
+; Port 254 shadow
+b23624 DEFS 1
 
 ; Message at 23646
 t23646 DEFM "]j]"
@@ -1153,12 +1154,14 @@ b24588 DEFB 0,128,237,176,201,5,6,4
  24604 DEFB 0
 
 ; Game runtime data
+@label=_SPEED_FACTOR
 b24605 DEFB 5        ; Speed factor, doesn't change
  24606 DEFB 5
  24607 DEFB 5
  24608 DEFB 0
  24609 DEFB 0
  24610 DEFB 0
+@label=_LIVES_REMAINING
  24611 DEFB 0        ; Number of lives player has left
  24612 DEFB 0
  24613 DEFB 0
@@ -1169,13 +1172,15 @@ b24615 DEFB 0,114,121,230,128
  24620 DEFB 194,28,115,58,246,140,230,128
  24628 DEFB 202,39,115,205,0,0,0,0
  24636 DEFB 0,0
-; Player ship pos, X
+@label=_PLAYER_XPOS
  24638 DEFB 0                             ; Player ship pos, X
-; Player ship pos, Y
- 24639 DEFB 0
-; Player ship position adjustment, -1, 0 or +1
+@label=_PLAYER_YPOS
+ 24639 DEFB 0                             ; Player ship pos, Y
+@label=_YPOS_ADJUST
  24640 DEFB 0                             ; Player ship adjustment, -1, 0 or +1
- 24641 DEFB 0,0,0,115
+ 24641 DEFB 0
+ 24642 DEFB 0
+ 24643 DEFB 0,115
  24645 DEFB 25,235,201,205,251,114,58
  24652 DEFB 0
  24653 DEFB 0
@@ -1226,13 +1231,13 @@ c24703 DI            ; start here
  24753 JP Z,24919    ;
  24756 CALL 25708    ;
  24759 JR Z,24771    ;
- 24761 LD A,(24611)  ;
+ 24761 LD A,(24611)  ; Lives remaining
  24764 OR A          ;
  24765 JP Z,25160    ;
  24768 CALL 25034    ;
 *24771 CALL 25442    ;
  24774 CALL 24795    ;
- 24777 LD A,(24611)  ;
+ 24777 LD A,(24611)  ; Lives remaining
  24780 OR A          ;
  24781 JP Z,25160    ;
  24784 LD A,(24613)  ;
@@ -1241,16 +1246,16 @@ c24703 DI            ; start here
 ; Return to top of game loop
  24791 JP 24868      ;
 
-; Unused
+; Storage byte for routine that follows
 s24794 DEFS 1
 
 ; Routine at 24795
 ;
 ; Used by the routine at #R24703.
-c24795 LD A,(24794)  ;
- 24798 DEC A         ;
- 24799 LD (24794),A  ;
- 24802 RET NZ        ;
+c24795 LD A,(24794)  ; {Pick up storage byte
+ 24798 DEC A         ; Decrement it and
+ 24799 LD (24794),A  ; return if it's
+ 24802 RET NZ        ; not zero}
  24803 CALL 30857    ;
 ; This entry point is used by the routine at #R24703.
 *24806 LD A,(24615)  ;
@@ -1318,6 +1323,7 @@ c24868 LD A,(24653)  ;
 ; 3.5MHz Z80.
 ;
 ; I:A Number of iterations to spin for
+@label=delay_ms
 c24908 LD B,A        ;
 *24909 PUSH BC       ; 11 Ts
  24910 LD B,0        ; {256 NOPs 4 Ts 13Ts = ~4352 Ts
@@ -1440,19 +1446,19 @@ c25034 LD DE,16384   ; Select 0th row
 c25105 LD A,(24609)  ;
  25108 OR A          ;
  25109 RET NZ        ;
- 25110 LD HL,(24603) ;
- 25113 LD BC,100     ;
- 25116 SBC HL,BC     ;
- 25118 RET C         ;
+ 25110 LD HL,(24603) ; {If this goes greater than 100
+ 25113 LD BC,100     ;  then an extra life
+ 25116 SBC HL,BC     ; is awarded. It's not the score though.
+ 25118 RET C         ;}
  25119 LD A,1        ;
  25121 LD (24609),A  ;
- 25124 LD A,(24611)  ;
- 25127 INC A         ;
- 25128 LD (24611),A  ;
+ 25124 LD A,(24611)  ; {Lives remaining
+ 25127 INC A         ; Add extra life
+ 25128 LD (24611),A  ; }
  25131 LD B,8        ;
-*25133 LD A,(23624)  ; Something to do with port 254?
- 25136 ADD A,8       ;
- 25138 AND 56        ; Null out bottom 3 bits - border?
+*25133 LD A,(23624)  ; Pick up port 254 shadow
+ 25136 ADD A,8       ; Don't know what this is for
+ 25138 AND 56        ; Null out bottom 3 bits - border black
  25140 LD (23624),A  ; Put it back
  25143 CALL 31987    ; Sound burbler
  25146 INC C         ;
@@ -1464,10 +1470,13 @@ c25105 LD A,(24609)  ;
  25155 DJNZ 25133    ;
  25157 JP 25034      ;
 
-; Routine at 25160
+; Game over
+;
+; By the time it gets here the burbler has beeped to indicate the
+; playe has been hit.
 ;
 ; Used by the routine at #R24703.
-c25160 CALL 32302    ;
+c25160 CALL 32302    ; It doesn't come back from this, the return address is popped and JP (HL) happens
  25163 NOP           ;
 ; This entry point is used by the routine at #R25105.
 *25164 RLA           ;
@@ -1497,21 +1506,23 @@ c25160 CALL 32302    ;
  25195 LD B,C        ;
  25196 LD E,C        ;
  25197 NOP           ;
+; Siren for game over
  25198 LD B,25       ;
 *25200 CALL 31987    ; Sound burbler
- 25203 JR Z,25255    ;
+ 25203 JR Z,25255    ; {Data for siren
  25205 JR Z,25247    ;
  25207 JR Z,25239    ;
  25209 JR Z,25231    ;
  25211 JR Z,25223    ;
- 25213 NOP           ;
- 25214 DJNZ 25200    ;
-; Game over, wait for fire to be pressed
+ 25213 NOP           ; }
+; Return point from burbler
+*25214 DJNZ 25200    ;
+; Wait for fire to be pressed
 *25216 CALL 26587    ; Read keyboard
- 25219 LD A,(24652)  ; {Has fire pressed flag gone true? If so, loop back and
+ 25219 LD A,(24652)  ; {Has fire pressed flag gone true? If not, loop back and
  25222 OR A          ; read the keyboard again
 *25223 JR Z,25216    ; }
- 25225 JP 24703      ;
+ 25225 JP 24703      ; Jump back to start of main loop for new game
 
 ; Routine at 25228
 ;
@@ -1519,7 +1530,7 @@ c25160 CALL 32302    ;
 c25228 LD A,(24593)  ;
 ; This entry point is used by the routine at #R25160.
 *25231 AND 56        ;
- 25233 LD (23624),A  ;
+ 25233 LD (23624),A  ; Copy into port 254 shadow
  25236 LD A,(24593)  ;
 ; This entry point is used by the routine at #R25160.
 *25239 LD BC,3       ;
@@ -1684,19 +1695,19 @@ c25628 CALL 31987    ; Sound burbler
 ; Data block at 25639
 b25639 DEFB 5,5,10,20
 
-; Routine at 25643
+; Hit spaceship
 ;
 ; Used by the routine at #R25592.
-c25643 LD A,(32058)  ;
+c25643 LD A,(32058)  ; ???
  25646 RRA           ;
- 25647 AND 3         ;
- 25649 LD HL,25639   ;
- 25652 CALL 25686    ;
- 25655 LD A,(HL)     ;
+ 25647 AND 3         ; Bottom 2 bits
+ 25649 LD HL,25639   ; 0x6427, H=100 L=39
+ 25652 CALL 25686    ; Add A to HL
+ 25655 LD A,(HL)     ; ???
  25656 LD B,A        ;
- 25657 LD HL,(24603) ;
- 25660 CALL 25686    ;
- 25663 LD (24603),HL ;
+ 25657 LD HL,(24603) ; {Add A to contents of 24603
+ 25660 CALL 25686    ; 
+ 25663 LD (24603),HL ;}
  25666 LD A,(25283)  ;
  25669 SRL A         ;
  25671 SRL A         ;
@@ -1708,7 +1719,7 @@ c25643 LD A,(32058)  ;
  25681 LD A,2        ;
  25683 JP 24935      ;
 
-; Routine at 25686
+; Add A to HL
 ;
 ; Used by the routine at #R25643.
 c25686 ADD A,L       ;
@@ -1775,7 +1786,7 @@ c25749 CALL 32059    ;
  25794 LD (25692),A  ;
 *25797 LD A,(25691)  ;
  25800 PUSH IX       ;
- 25802 CALL 27097    ;
+ 25802 CALL 27097    ; IX = 27327 + ( 'A' * 706 )
  25805 LD A,(IX+1)   ;
  25808 LD (25693),A  ;
  25811 LD A,(25692)  ;
@@ -1833,10 +1844,10 @@ c25853 LD HL,25695   ;
  25916 XOR A         ;
  25917 LD (24638),A  ; Player ship pos, X
  25920 LD B,8        ;
-*25922 LD A,(23624)  ;
- 25925 ADD A,8       ;
- 25927 AND 56        ;
- 25929 LD (23624),A  ;
+*25922 LD A,(23624)  ; Pick up port 254 shadow
+ 25925 ADD A,8       ; ???
+ 25927 AND 56        ; Mask out bottom 3 bits, border black
+ 25929 LD (23624),A  ; Put it back
  25932 CALL 31987    ; Sound burbler
  25935 JR Z,25947    ;
  25937 JR Z,25959    ;
@@ -1849,9 +1860,9 @@ c25853 LD HL,25695   ;
  25952 LD (65535),A  ;
  25955 LD (65330),A  ;
  25958 NOP           ;
-*25959 LD A,(24611)  ;
- 25962 DEC A         ;
- 25963 LD (24611),A  ;
+*25959 LD A,(24611)  ; {Lives remaining
+ 25962 DEC A         ; Lost life?
+ 25963 LD (24611),A  ;}
  25966 CALL NZ,26965 ;
  25969 CALL 25976    ;
  25972 OR 1          ;
@@ -1884,7 +1895,13 @@ c26001 LD DE,20704   ; Top scan of bottom row of the screen, where the ship is
 
 ; Clear one character row
 ;
+; Takes the address of the top scan byte of the leftmost char in
+; a row of 32 chars and sets them to zero. So it clears 32 chars,
+; 8 scans high, starting at DE.
+;
 ; Used by the routines at #R25034, #R25442, #R25592, #R30995 and #R31327.
+;
+; I:DE Top scan of screen char to start clearing at
 c26004 LD C,8        ; We're going to clear 8 scans at screen address in DE
  26006 XOR A         ;
 *26007 LD B,32       ; {Screen width is 32 bytes, write zero into each byte
@@ -1932,7 +1949,7 @@ c26049 LD A,(24643)  ;
  26059 LD (26101),A  ;
  26062 LD A,(24634)  ;
 *26065 LD (26099),A  ;
- 26068 CALL 27097    ;
+ 26068 CALL 27097    ; IX = 27327 + ( 'A' * 706 )
  26071 LD A,(26101)  ;
  26074 CP (IX+1)     ;
  26077 JR Z,26087    ;
@@ -2024,10 +2041,10 @@ c26225 CALL 26320    ;
  26280 JP NZ,26375   ;
  26283 CALL 25976    ;
  26286 LD B,40       ;
-*26288 LD A,(23624)  ;
- 26291 ADD A,8       ;
-*26293 AND 56        ;
- 26295 LD (23624),A  ;
+*26288 LD A,(23624)  ; Pick up port 254 shadow
+ 26291 ADD A,8       ; ???
+*26293 AND 56        ; Mask out bottom 3 bits, border black
+ 26295 LD (23624),A  ; Put it back
  26298 CALL 31987    ; Sound burbler
  26301 DJNZ 26403    ;
  26303 JR NZ,26355   ;
@@ -2057,13 +2074,13 @@ c26320 LD B,32       ;
 ;
 ; Used by the routine at #R26225.
 c26337 LD BC,(26100) ;
- 26341 CALL 32254    ;
+ 26341 CALL 32254    ; cxy2saddr: DE = screen address of char C,B
  26344 LD HL,(26102) ;
  26347 CALL 26361    ;
  26350 LD BC,(26100) ;
  26354 INC B         ;
 ; This entry point is used by the routine at #R26225.
-*26355 CALL 32254    ;
+*26355 CALL 32254    ; cxy2saddr: DE = screen address of char C,B
  26358 LD HL,(26104) ;
 *26361 LD B,8        ;
 *26363 LDI           ;
@@ -2469,8 +2486,16 @@ c27030 LD A,(24614)  ;
  27093 JP P,27053    ;
  27096 RET           ;
 
-; Routine at 27097
+; IX = 27327 + ( 'A' * 706 )
 ;
+; Guessing this is finding an entry in an array of data
+; structures which are 706 bytes? That would be too big
+; for the aliens?
+; .
+; 27327 starts a large data block which starts off with the
+; assembler strings and stuff, so it's being populated with
+; some large amount of data.
+; .
 ; Used by the routines at #R25749, #R26049, #R30857 and #R31075.
 c27097 LD IX,27327   ;
  27101 OR A          ;
@@ -3107,7 +3132,7 @@ c30857 LD A,(24632)  ;
  30873 OR A          ;
  30874 JR NZ,30888   ;
  30876 LD A,(24632)  ;
- 30879 CALL 27097    ;
+ 30879 CALL 27097    ; IX = 27327 + ( 'A' * 706 )
  30882 CALL 31119    ;
  30885 CALL 30959    ;
 *30888 LD A,(24632)  ;
@@ -3178,8 +3203,8 @@ c30995 CALL 31987    ; Sound burbler
  31014 JR Z,31046    ;
  31016 LD B,A        ;
  31017 LD C,0        ;
- 31019 CALL 32254    ;
- 31022 CALL 26004    ;
+ 31019 CALL 32254    ; cxy2saddr: DE = screen address of char C,B
+ 31022 CALL 26004    ; Clear one character row (32 chars)
  31025 LD BC,(31109) ;
  31029 INC B         ;
 ; This entry point is used by the routine at #R31064.
@@ -3210,7 +3235,7 @@ c31064 LD BC,(31109) ;
 ; Used by the routine at #R24703.
 c31075 LD A,4        ;
 *31077 LD (24632),A  ;
- 31080 CALL 27097    ;
+ 31080 CALL 27097    ; IX = 27327 + ( 'A' * 706 )
  31083 CALL 31119    ;
  31086 CALL 31198    ;
  31089 CALL 31987    ; Sound burbler
@@ -3279,7 +3304,7 @@ c31198 CALL 31303    ;
 *31213 LD A,8        ;
  31215 LD (31118),A  ;
  31218 LD C,0        ;
- 31220 CALL 32254    ;
+ 31220 CALL 32254    ; cxy2saddr: DE = screen address of char C,B
  31223 LD (31116),DE ;
 *31227 CALL 31257    ;
  31230 LD HL,(31114) ;
@@ -3356,11 +3381,11 @@ c31327 LD A,(24610)  ;
  31330 OR A          ;
  31331 RET Z         ;
  31332 LD DE,20608   ;
- 31335 CALL 26004    ;
+ 31335 CALL 26004    ; Clear one character row (32 chars)
  31338 LD DE,20640   ;
- 31341 CALL 26004    ;
+ 31341 CALL 26004    ; Clear one character row (32 chars)
  31344 LD DE,20672   ;
- 31347 CALL 26004    ;
+ 31347 CALL 26004    ; Clear one character row (32 chars)
  31350 XOR A         ;
  31351 LD (24610),A  ;
  31354 CALL 31987    ; Sound burbler
@@ -3633,7 +3658,6 @@ c31922 LD HL,31666   ; Table of clever values
 ; Draw or undraw sprite
 ;
 ; Draws or clears a sprite using a sequence of pixel sets or clears.
-; Which would be an odd way of doing it.
 ;.
 ; Used by the routines at #R25442, #R25853, #R26020, #R26675, #R26916 and
 ; #R26947.
@@ -3665,28 +3689,31 @@ b31986 DEFB 0        ; Beeper's border protection value is stored here
 
 ; Sound burbler
 ;
-; Loop over a sequence of pitch/length pairs, calling the beeper with each
+; Loop over a sequence of pitch/length pairs, calling the beeper with each.
+; The data sequence is at the caller location, so this picks it up from the
+; return address.
 ; .
-; I'm still not sure what the preamble does. It think it's setting the border
-; colour such that sending toggles to port 254 doesn't change the border.
-;
-; Input:DE pointer to sequence of pitch/length tuples
+; This contains the rolling border effect which accompanies the end
+; of game siren, etc.
+;.
+; It walks the sequence and stops when DE is pointing to a zero byte.
+; It returns to that location+1
 c31987 LD (31984),DE ; Save DE somewhere
- 31991 POP DE        ; Take DE from the stack
+ 31991 POP DE        ; DE takes return address from the stack
  31992 PUSH BC       ; Save
  31993 PUSH AF       ; Save
  31994 PUSH HL       ; Save
- 31995 LD A,(23624)  ; A comes from this location
- 31998 AND 56        ; Mask out bottom 3 bits
- 32000 RRCA          ; Rotate down 3 bits
+ 31995 LD A,(23624)  ; Pick up port 254 shadow
+ 31998 AND 56        ; Bottom 3 bits zero
+ 32000 RRCA          ; Rotate down 3 bits, sets the border colour
  32001 RRCA          ;
  32002 RRCA          ;
- 32003 OR 8          ; Set this bit
+ 32003 OR 8          ; Set the MIC bit
  32005 LD (31986),A  ; Save result, it's picked up by the beeper routine
 *32008 LD A,(DE)     ; DE was pointing to something interesting
  32009 INC DE        ; Next byte, whatever it is
- 32010 OR A          ; {If it's zero we're done
- 32011 JR Z,32025    ; }
+ 32010 OR A          ; {If it's zero we're done and DE is pointing to
+ 32011 JR Z,32025    ; the location to return to}
  32013 LD L,A        ; Low byte from (DE) into L, it's a count of something
  32014 LD A,(DE)     ; High byte from (DE) into A, it's the pitch
  32015 INC DE        ; Move on ready for next one
@@ -3698,7 +3725,7 @@ c31987 LD (31984),DE ; Save DE somewhere
 *32025 POP HL        ; Restore
  32026 POP AF        ; Restore
  32027 POP BC        ; Restore
- 32028 PUSH DE       ; Put DE back on stack
+ 32028 PUSH DE       ; Restore return address
  32029 LD DE,(31984) ; Put DE back as it was at entry
  32033 RET           ;
 
@@ -3812,13 +3839,19 @@ b32180 DEFB 126,126,24,24,24,24,24,24
  32244 DEFB 126,126,126,126,102,126,126,6
  32252 DEFB 126,126
 
-; Routine at 32254
+; cxy2saddr
 ;
+; Screen address of top pixel row of character square at x,y.
+; .
 ; Used by the routines at #R26337, #R30995, #R31198 and #R32275.
-c32254 LD D,B        ;
- 32255 XOR A         ;
- 32256 RR B          ;
- 32258 RRA           ;
+;
+; I:C xpos char
+; I:B ypos char
+; O:DE Screen address
+c32254 LD D,B        ; {No idea how this is working.
+ 32255 XOR A         ; 
+ 32256 RR B          ; asm_zx_cxy2saddr in z88dk is
+ 32258 RRA           ; more efficient
  32259 RR B          ;
  32261 RRA           ;
  32262 RR B          ;
@@ -3829,13 +3862,13 @@ c32254 LD D,B        ;
  32268 LD A,24       ;
  32270 AND D         ;
  32271 OR 64         ;
- 32273 LD D,A        ;
+ 32273 LD D,A        ; }
  32274 RET           ;
 
 ; Routine at 32275
 ;
 ; Used by the routines at #R24935 and #R32307.
-c32275 CALL 32254    ;
+c32275 CALL 32254    ; cxy2saddr: DE = screen address of char C,B
  32278 LD B,8        ;
 *32280 LD A,(HL)     ;
  32281 INC HL        ;
