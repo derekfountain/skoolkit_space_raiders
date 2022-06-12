@@ -1461,13 +1461,14 @@ c25105 LD A,(24609)  ;
  25138 AND 56        ; Null out bottom 3 bits - border black
  25140 LD (23624),A  ; Put it back
  25143 CALL 31987    ; Sound burbler
- 25146 INC C         ;
+ 25146 INC C         ; {Extra life sound
  25147 JR Z,25167    ;
  25149 LD E,24       ;
  25151 INC D         ;
  25152 JR NC,25164   ;
- 25154 NOP           ;
- 25155 DJNZ 25133    ;
+ 25154 NOP           ; }
+; Sound burbler return point
+ 25155 DJNZ 25133    ; 
  25157 JP 25034      ;
 
 ; Game over
@@ -1509,14 +1510,14 @@ c25160 CALL 32302    ; It doesn't come back from this, the return address is pop
 ; Siren for game over
  25198 LD B,25       ;
 *25200 CALL 31987    ; Sound burbler
- 25203 JR Z,25255    ; {Data for siren
+ 25203 JR Z,25255    ; {Data for game over siren
  25205 JR Z,25247    ;
  25207 JR Z,25239    ;
  25209 JR Z,25231    ;
  25211 JR Z,25223    ;
  25213 NOP           ; }
-; Return point from burbler
-*25214 DJNZ 25200    ;
+; Sound burbler return point
+*25214 DJNZ 25200    ; Repeat x25
 ; Wait for fire to be pressed
 *25216 CALL 26587    ; Read keyboard
  25219 LD A,(24652)  ; {Has fire pressed flag gone true? If not, loop back and
@@ -1536,18 +1537,17 @@ c25228 LD A,(24593)  ;
 *25239 LD BC,3       ;
  25242 LD HL,22528   ;
 *25245 LD (HL),A     ;
- 25246 INC HL        ;
+ 25246 INC HL        ; 
 ; This entry point is used by the routine at #R25160.
 *25247 DJNZ 25245    ;
  25249 DEC C         ;
 ; This entry point is used by the routine at #R25160.
 *25250 JR NZ,25245   ;
  25252 CALL 31987    ; Sound burbler
-; This entry point is used by the routine at #R25160.
-*25255 LD H,H        ;
-; This entry point is used by the routine at #R25160.
-*25256 LD H,H        ;
- 25257 NOP           ;
+ 25255 LD H,H        ; {Screen cleared sound ???
+ 25256 LD H,H        ;
+ 25257 NOP           ; }
+; Sound burbler return point
  25258 LD BC,256     ; Row 1, col 0, score and lives row
  25261 LD A,(24600)  ; INK colour from here
  25264 LD E,A        ;
@@ -1655,10 +1655,10 @@ c25442 LD A,(24653)  ;
 ; Routine at 25592
 ;
 ; Used by the routine at #R25442.
-c25592 CALL 25537    ;
- 25595 CALL 25643    ;
+c25592 CALL 25537    ; {One of these will show the score for the spaceship???
+ 25595 CALL 25643    ; }
  25598 CALL 31987    ; Sound burbler
- 25601 LD A,(BC)     ;
+ 25601 LD A,(BC)     ; { Hit spaceship sound
  25602 RST 56        ;
  25603 LD A,(BC)     ;
  25604 RET Z         ;
@@ -1677,19 +1677,22 @@ c25592 CALL 25537    ;
  25617 INC D         ;
  25618 INC A         ;
  25619 INC D         ;
- 25620 JR Z,25622    ;
+ 25620 JR Z,25622    ; }
+; Sound burbler return point
 *25622 LD DE,16416   ; Row 1
  25625 JP 26004      ; Clear row
 
-; Routine at 25628
+; Spaceship noise
 ;
 ; Used by the routine at #R25442.
+@label=spaceship_noise
 c25628 CALL 31987    ; Sound burbler
  25631 LD (BC),A     ;
  25632 ADD HL,DE     ;
  25633 LD (BC),A     ;
  25634 LD (6402),A   ;
  25637 NOP           ;
+;Sound burbler return point
  25638 RET           ;
 
 ; Data block at 25639
@@ -1849,17 +1852,19 @@ c25853 LD HL,25695   ;
  25927 AND 56        ; Mask out bottom 3 bits, border black
  25929 LD (23624),A  ; Put it back
  25932 CALL 31987    ; Sound burbler
- 25935 JR Z,25947    ;
+ 25935 JR Z,25947    ; {Player hit noise
  25937 JR Z,25959    ;
  25939 JR Z,25981    ;
  25941 JR Z,26023    ;
- 25943 NOP           ;
- 25944 DJNZ 25922    ;
+ 25943 NOP           ; }
+; Sound burbler return point
+ 25944 DJNZ 25922    ; Repeat player hit *8
  25946 CALL 26001    ; Clear bottom row
  25949 CALL 31987    ; Sound burbler
- 25952 LD (65535),A  ;
- 25955 LD (65330),A  ;
- 25958 NOP           ;
+ 25952 LD (65535),A  ; {Game over sound
+ 25955 LD (65330),A  ;  No, can't be, the check is below
+ 25958 NOP           ; }
+; Sound burbler return point
 *25959 LD A,(24611)  ; {Lives remaining
  25962 DEC A         ; Lost life?
  25963 LD (24611),A  ;}
@@ -2023,13 +2028,14 @@ c26225 CALL 26320    ;
  26240 CALL 26337    ;
  26243 CALL 26947    ;
  26246 CALL 31987    ; Sound burbler
- 26249 DJNZ 26331    ;
+ 26249 DJNZ 26331    ; { Alien hit sound
  26251 JR NZ,26293   ;
  26253 LD B,B        ;
  26254 INC D         ;
  26255 ADD A,B       ;
  26256 LD A,(BC)     ;
- 26257 NOP           ;
+ 26257 NOP           ; }
+; Sound burbler return point
  26258 CALL 26464    ;
  26261 LD HL,26138   ;
  26264 LD (26102),HL ;
@@ -2046,12 +2052,13 @@ c26225 CALL 26320    ;
 *26293 AND 56        ; Mask out bottom 3 bits, border black
  26295 LD (23624),A  ; Put it back
  26298 CALL 31987    ; Sound burbler
- 26301 DJNZ 26403    ;
+ 26301 DJNZ 26403    ; {Last alien hit sound
  26303 JR NZ,26355   ;
  26305 LD B,B        ;
  26306 ADD HL,DE     ;
  26307 JR NZ,26359   ;
- 26309 NOP           ;
+ 26309 NOP           ;}
+; Sound burbler return point
  26310 DJNZ 26288    ;
  26312 CALL 25537    ;
  26315 CALL 26001    ; Clear bottom row
@@ -2190,13 +2197,13 @@ c26490 LD IX,24644   ;
  26523 JR NC,26541   ;
  26525 CALL 26020    ;
  26528 CALL 31987    ; Sound burbler
- 26531 INC B         ;
+ 26531 INC B         ; { Hit alien bullet sound
  26532 JR 26542      ;
 
 ; Data block at 26534
-b26534 DEFB 12,16,6,0
+b26534 DEFB 12,16,6,0 }
 
-; Routine at 26538
+; Sound burbler return point
 c26538 JP 26947      ;
 
 ; Routine at 26541
@@ -2366,11 +2373,12 @@ b26796 DEFB 10,0,11,1,1
 ;
 ; Used by the routine at #R26566.
 c26883 CALL 31987    ; Sound burbler
- 26886 INC D         ;
+ 26886 INC D         ; { Player fire sound
  26887 LD (25610),A  ;
  26890 DEC B         ;
  26891 RET Z         ;
- 26892 NOP           ;
+ 26892 NOP           ;}
+; Sound burbler return point
  26893 LD A,1        ;
  26895 LD (24641),A  ;
  26898 LD A,(24638)  ; Player ship pos, X
@@ -2426,8 +2434,9 @@ c26965 PUSH IX       ; Set by one of the subroutines, ???
  26981 LD (24638),A  ; Player ship pos, X
 *26984 CALL 26675    ;
  26987 CALL 31987    ; Sound burbler
- 26990 LD BC,15      ;
- 26993 LD A,(26964)  ;
+ 26990 LD BC,15      ; Move player ship sound? Maybe new player ship sound?
+; Sound burbler return point
+ 26993 LD A,(26964)  ;  
  26996 CP (IX+0)     ;
  26999 JR NZ,26984   ;
  27001 POP HL        ;
@@ -3139,11 +3148,11 @@ c30857 LD A,(24632)  ;
  30891 OR A          ;
  30892 JR NZ,30900   ;
  30894 CALL 31987    ; Sound burbler
- 30897 LD A,(BC)     ;
+ 30897 LD A,(BC)     ; { Don't know what this is
  30898 JP M,52480    ;
  30901 EXX           ;
- 30902 LD L,C        ;
- 30903 CALL 31119    ;
+ 30902 LD L,C        ; }
+ 30903 CALL 31119    ; ; Not sure where the sound return point is
  30906 LD A,(24633)  ;
  30909 OR A          ;
  30910 JR Z,30938    ;
@@ -3192,8 +3201,8 @@ c30857 LD A,(24632)  ;
 ;
 ; Used by the routine at #R30857.
 c30995 CALL 31987    ; Sound burbler
- 30998 EX AF,AF'     ;
- 30999 JP M,14848    ;
+ 30998 EX AF,AF'     ; { ???
+ 30999 JP M,14848    ; }
  31002 ADD A,(HL)    ;
  31003 LD A,C        ;
  31004 CP 18         ;
@@ -3216,8 +3225,8 @@ c30995 CALL 31987    ; Sound burbler
 *31046 LD A,1        ;
  31048 LD (24613),A  ;
  31051 CALL 31987    ; Sound burbler
- 31054 JP M,64100    ;
- 31057 RET Z         ;
+ 31054 JP M,64100    ; { ???
+ 31057 RET Z         ; }
  31058 JP M,64250    ;
  31061 JP M,51456    ;
 
@@ -3239,8 +3248,8 @@ c31075 LD A,4        ;
  31083 CALL 31119    ;
  31086 CALL 31198    ;
  31089 CALL 31987    ; Sound burbler
- 31092 ADD HL,DE     ;
- 31093 RET P         ;
+ 31092 ADD HL,DE     ; { ???
+ 31093 RET P         ; }
  31094 LD H,H        ;
  31095 LD A,B        ;
  31096 ADD HL,DE     ;
@@ -3389,8 +3398,8 @@ c31327 LD A,(24610)  ;
  31350 XOR A         ;
  31351 LD (24610),A  ;
  31354 CALL 31987    ; Sound burbler
- 31357 RET Z         ;
- 31358 LD A,(BC)     ;
+ 31357 RET Z         ; { ???
+ 31358 LD A,(BC)     ; }
  31359 LD A,(BC)     ;
  31360 RET Z         ;
  31361 RET Z         ;
@@ -3517,8 +3526,8 @@ c31527 LD A,(24610)  ;
  31617 DEC B         ;
  31618 CALL 31640    ;
  31621 CALL 31987    ; Sound burbler
- 31624 INC B         ;
- 31625 INC D         ;
+ 31624 INC B         ; { ???
+ 31625 INC D         ; }
  31626 INC B         ;
  31627 LD E,0        ;
  31629 OR 1          ;
