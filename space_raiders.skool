@@ -2533,7 +2533,7 @@ c27030 LD A,(24614)  ;
 ; Used by the routines at #R25749, #R26049, #R30857 and #R31075.
 ;
 ; I:A Multiplier
-: O:IX 27327 + A*706
+; O:IX 27327 + A*706
 @label=multi_a_by_706_add_27327
 c27097 LD IX,27327   ;
  27101 OR A          ; {If A is zero no multiplication
@@ -2551,7 +2551,7 @@ c27097 LD IX,27327   ;
 ; Used by the routine at #R27030.
 ;
 ; I:A Multiplier
-: O:HL 27127 + A*64
+; O:HL 27127 + A*64
 @label=multi_a_by_64_add_27327
 c27114 LD HL,27127   ;
  27117 OR A          ; {If A is zero no multiplication
