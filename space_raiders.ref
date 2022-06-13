@@ -5,6 +5,7 @@
 [Game]
 Game=Space Raiders
 Logo=#SCR1,3,11,26,4(/images/logo)
+LinkOperands=CALL,DEFW,DJNZ,JP,JR,LD
 
 [Fact:Assembler code]
 There are quite a few text messages in the code, like "Stack overflow, try more P switches",
@@ -14,3 +15,7 @@ These appear to come from ASM.COM:
   https://www.iee.et.tu-dresden.de/~kc-club/09/RUBRIK23.HTM
 which is a CP/M assembler, and was presumably used to build
 the production binary.
+
+[Fact:No use of alternate registers]
+The code doesn't use the Z80's alternate register set. There is no EXX or EX AF,AF'
+anywhere in it.

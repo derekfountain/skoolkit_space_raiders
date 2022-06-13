@@ -1154,6 +1154,7 @@ b24588 DEFB 0,128,237,176,201,5,6,4
  24604 DEFB 0
 
 ; Game runtime data
+@label=_GAME_RUNTIME_DATA
 @label=_SPEED_FACTOR
 b24605 DEFB 5        ; Speed factor, doesn't change
  24606 DEFB 5
@@ -1186,6 +1187,7 @@ b24615 DEFB 0,114,121,230,128
  24653 DEFB 0
 
 ; Game initialisation data
+@label=_GAME_INIT_DATA
 b24654 DEFB 1        ; Speed factor
  24655 DEFB 1
  24656 DEFB 1
@@ -1208,6 +1210,7 @@ b24664 DEFB 55,11,11,11
 ; Start of game, from LOADer and new game loop
 ;
 ; Used by the routine at #R25160.
+@label=start
 c24703 DI            ; start here
  24704 CALL 24823    ; Game data initialisation, copies 10 bytes
  24707 CALL 32287    ; Clear screen pixels
@@ -1247,6 +1250,7 @@ c24703 DI            ; start here
  24791 JP 24868      ;
 
 ; Storage byte for routine that follows
+@label=_UNKNOWN1
 s24794 DEFS 1
 
 ; Routine at 24795
@@ -1271,6 +1275,7 @@ c24795 LD A,(24794)  ; {Pick up storage byte
 ; Reset game data
 ;
 ; Used by the routine at #R24703.
+@label=reset_game_data
 c24823 LD HL,24654   ; Initialisation data
  24826 LD DE,24605   ; Play data
  24829 LD BC,10      ; 10 bytes
@@ -1337,6 +1342,7 @@ c24908 LD B,A        ;
 ;
 ; Increments the number at 24614 up to 7, but no higher. Used by the routine at
 ; #R24703.
+@label=count_to_7
 c24919 LD A,(24614)  ;
  24922 INC A         ;
  24923 CP 8          ;
@@ -1346,6 +1352,7 @@ c24919 LD A,(24614)  ;
  24931 JP 24716      ; Jump back into game loop???
 
 ; Unused
+@label=_UNKNOWN2
 s24934 DEFS 1
 
 ; Routine at 24935
@@ -1405,11 +1412,13 @@ c24989 LD DE,(24603) ;
  25030 JP 24935      ;
 
 ; Unused
+@label=_UNKNOWN3
 s25033 DEFS 1
 
 ; Draw lives remaining on top row
 ;
 ; Used by the routines at #R24703 and #R25105.
+@label=draw_lives_remaining
 c25034 LD DE,16384   ; Select 0th row
  25037 CALL 26004    ; Clear it
  25040 LD A,(24611)  ; Pick up number of lives remaining
@@ -1477,8 +1486,11 @@ c25105 LD A,(24609)  ;
 ; playe has been hit.
 ;
 ; Used by the routine at #R24703.
+@label=game_over
 c25160 CALL 32302    ; It doesn't come back from this, the return address is popped and JP (HL) happens
- 25163 NOP           ;
+
+; Data follows, I think
+b25163 NOP           ;
 ; This entry point is used by the routine at #R25105.
 *25164 RLA           ;
  25165 LD B,A        ;
@@ -1517,6 +1529,7 @@ c25160 CALL 32302    ; It doesn't come back from this, the return address is pop
  25211 JR Z,25223    ;
  25213 NOP           ; }
 ; Sound burbler return point
+@label=game_over_siren
 *25214 DJNZ 25200    ; Repeat x25
 ; Wait for fire to be pressed
 *25216 CALL 26587    ; Read keyboard
@@ -1655,6 +1668,7 @@ c25442 LD A,(24653)  ;
 ; Routine at 25592
 ;
 ; Used by the routine at #R25442.
+@label=hit_spaceship
 c25592 CALL 25537    ; {One of these will show the score for the spaceship???
  25595 CALL 25643    ; }
  25598 CALL 31987    ; Sound burbler
@@ -1725,6 +1739,7 @@ c25643 LD A,(32058)  ; ???
 ; Add A to HL
 ;
 ; Used by the routine at #R25643.
+@label=add_a_to_hl
 c25686 ADD A,L       ;
  25687 LD L,A        ;
  25688 RET NC        ;
@@ -1896,6 +1911,7 @@ c25994 LD A,(IX+1)   ;
 ; Clear bottom character row
 ;
 ; Used by the routines at #R25853 and #R26225.
+@label=clear_bottom_char_row
 c26001 LD DE,20704   ; Top scan of bottom row of the screen, where the ship is
 
 ; Clear one character row
@@ -1907,6 +1923,7 @@ c26001 LD DE,20704   ; Top scan of bottom row of the screen, where the ship is
 ; Used by the routines at #R25034, #R25442, #R25592, #R30995 and #R31327.
 ;
 ; I:DE Top scan of screen char to start clearing at
+@label=clear_char_row
 c26004 LD C,8        ; We're going to clear 8 scans at screen address in DE
  26006 XOR A         ;
 *26007 LD B,32       ; {Screen width is 32 bytes, write zero into each byte
@@ -2241,6 +2258,7 @@ c26566 CALL 26587    ; Read keyboard
 ; ???? Still not worked out how B being held is propogated ????
 ;
 ; O:24652 (fire pressed flag) set 1 if fire has been pressed
+@label=read_keyboard
 c26587 LD BC,65278   ; 0xFEFE - matrix SHIFT, Z, X, C, V
  26590 IN E,(C)      ; Read port into E
  26592 LD BC,63486   ; 0xF7FE - matrix 1, 2, 3, 4, 5
@@ -2336,16 +2354,19 @@ c26712 LD HL,26722   ;
 ; fire-pressed flag is held at 0. In order words the fire-pressed flag will
 ; only go true when this is 1, and it's only set 1 when the fire key is found
 ; to be released
+@label=_FIRE_RELEASED
 b26721 DEFB 0        ; Fire released flag, local to keypress routine
 
 ; Player ship sprite data. x,y pairs, each giving a single pixel
 ; Pixels to clear as sprite moves left or right.
+@label=_PLAYER_SHIP_CLEAR1
 b26722 DEFB 10,0,9,1,1,2,9
  26729 DEFB 2,19,2,1,3,9,3,19
  26737 DEFB 3,1,4,6,4,18,4,1
  26745 DEFB 5,1,6,6,6,18,6,1
  26753 DEFB 7,7,7,19,7,255
 ; Other direction
+@label=_PLAYER_SHIP_CLEAR2
  26759 DEFB 11,0
  26761 DEFB 12,1,2,2,12,2,20,2
  26769 DEFB 2,3,12,3,20,3,3,4
@@ -2353,18 +2374,21 @@ b26722 DEFB 10,0,9,1,1,2,9
  26785 DEFB 15,6,20,6,2,7,14,7
  26793 DEFB 20,7,255
 ; Same as above, but flipped??? Not sure
+@label=_PLAYER_SHIP_CLEAR3
 b26796 DEFB 10,0,11,1,1
  26801 DEFB 2,11,2,19,2,1,3,11
  26809 DEFB 3,19,3,2,4,14,4,19
  26817 DEFB 4,19,5,2,6,14,6,19
  26825 DEFB 6,1,7,13,7,19,7,255
 ; Other direction
+@label=_PLAYER_SHIP_CLEAR4
  26833 DEFB 9,0,8,1,0,2,8,2
  26841 DEFB 18,2,0,3,8,3,18,3
  26849 DEFB 0,4,5,4,17,4,0,5
  26857 DEFB 0,6,5,6,17,6,0,7
  26865 DEFB 6,7,18,7,255
 ; This looks like a vertical line, might be a bullet?
+@label=_BULLET
  26871 DEFB 0,0,0
  26873 DEFB 1,0,2,0,3,0,4,0
  26881 DEFB 5,255
@@ -2424,6 +2448,7 @@ s26964 DEFS 1
 ;
 ; Used by the routine which draws lives remaining at the top, and when the a
 ; new life appears at the bottom after dying
+@label=new_player_ship
 c26965 PUSH IX       ; Set by one of the subroutines, ???
  26967 PUSH HL       ;
  26968 LD A,255      ; {Set up adjustment of -1, which means 1 pixel left
@@ -2506,9 +2531,13 @@ c27030 LD A,(24614)  ;
 ; some large amount of data.
 ; .
 ; Used by the routines at #R25749, #R26049, #R30857 and #R31075.
+;
+; I:A Multiplier
+: O:IX 27327 + A*706
+@label=multi_a_by_706_add_27327
 c27097 LD IX,27327   ;
- 27101 OR A          ;
- 27102 RET Z         ;
+ 27101 OR A          ; {If A is zero no multiplication
+ 27102 RET Z         ; is necessary}
  27103 PUSH BC       ;
  27104 LD BC,706     ;
 *27107 ADD IX,BC     ;
@@ -2517,12 +2546,16 @@ c27097 LD IX,27327   ;
  27112 POP BC        ;
  27113 RET           ;
 
-; Routine at 27114
+; IX = 27127 + ( 'A' * 64 )
 ;
 ; Used by the routine at #R27030.
+;
+; I:A Multiplier
+: O:HL 27127 + A*64
+@label=multi_a_by_64_add_27327
 c27114 LD HL,27127   ;
- 27117 OR A          ;
- 27118 RET Z         ;
+ 27117 OR A          ; {If A is zero no multiplication
+ 27118 RET Z         ; is necessary}
  27119 LD BC,64      ;
 *27122 ADD HL,BC     ;
  27123 DEC A         ;
@@ -3357,6 +3390,7 @@ c31257 LD DE,(31116) ;
 ; I:C first cx
 ; I:D Number of attributes to set
 ; I:E INK colour
+;@label=set_attributes_xy_n
 c31290 CALL 32343    ; Find attribute address of cy,cx in BC
 *31293 LD A,248      ; {Clear INK in attribute cell
  31295 AND (HL)      ; }
@@ -3370,6 +3404,7 @@ c31290 CALL 32343    ; Find attribute address of cy,cx in BC
 ; Sets 2 rows to an INK colour
 ;
 ; This might be setting the colour bands for the aliens?
+@label=set_attribute_band
 c31303 LD BC,(31109) ; Pick up cy from here
  31307 LD C,0        ; cx is 0, start of row
  31309 LD HL,24594   ; 0x6012
@@ -3385,7 +3420,10 @@ c31303 LD BC,(31109) ; Pick up cy from here
 
 ; Routine at 31327
 ;
+; Clear 3 rows... Might be the code to remove the barriers when the aliens get low
+;.
 ; Used by the routine at #R30995.
+@label=remove_barriers
 c31327 LD A,(24610)  ;
  31330 OR A          ;
  31331 RET Z         ;
@@ -3544,6 +3582,7 @@ c31527 LD A,(24610)  ;
 ;
 ; I:B ypos
 ; I:C xpos
+@label=pixel_set
 c31634 CALL 31922    ; pxy2saddr of B=ypos, C=xpos
  31637 OR (HL)       ; Pick up screen byte
  31638 LD (HL),A     ; Merge in the required pixel
@@ -3558,6 +3597,7 @@ c31634 CALL 31922    ; pxy2saddr of B=ypos, C=xpos
 ;
 ; I:B ypos
 ; I:C xpos
+@label=pixel_clear
 c31640 CALL 31922    ; pxy2saddr of B=ypos, C=xpos
  31643 CPL           ; Invert pixel map
  31644 AND (HL)      ; Pick up screen byte
@@ -3573,6 +3613,7 @@ c31640 CALL 31922    ; pxy2saddr of B=ypos, C=xpos
 ;
 ; I:B ypos
 ; I:C xpos
+@label=pixel_xor
 c31647 CALL 31922    ; pxy2saddr of B=ypos, C=xpos
  31650 XOR (HL)      ; Toggle screen bit
  31651 LD (HL),A     ; XOR in the required pixel
@@ -3588,12 +3629,15 @@ c31647 CALL 31922    ; pxy2saddr of B=ypos, C=xpos
 ;
 ; I:B ypos
 ; I:C xpos
+@label=pixel_clearbyte
 c31653 CALL 31922    ; pxy2saddr of B=ypos, C=xpos
  31656 AND (HL)      ; Clear byte except the indicated pixel which is left
  31657 RET           ;
 
 ; Screen address calculation table, used by px2saddr
+@label=_PIXEL_DATA
 b31658 DEFB 128,64,32,16,8,4,2,1
+@label=_PX2SADDR_DATA
  31666 DEFB 0,8,16,24,32,40,48,56
  31674 DEFB 1,9,17,25,33,41,49,57
  31682 DEFB 2,10,18,26,34,42,50,58
@@ -3638,6 +3682,7 @@ b31658 DEFB 128,64,32,16,8,4,2,1
 ; I:C xpos in pixels
 ; O:HL display file byte address
 ; O:A  display file byte's pixel
+@label=px2saddr
 c31922 LD HL,31666   ; Table of clever values
  31925 LD E,B        ; {DE is 8 bit y pos
  31926 LD D,0        ; }
@@ -3674,6 +3719,7 @@ c31922 LD HL,31666   ; Table of clever values
 ; I:A Mode for pixel (0=set,1=clear,2=XOR,3=ClearByte)
 ; I:HL Sprite data, list of x,y offset pairs, 0xFF to end
 ; I:IX Pointer to xpos,ypos screen location (chars)
+@label=sprite_draw_or_clear
 c31960 CALL 32374    ; Prime jump at 32362, consumes A
 *31963 LD A,(HL)     ; {Pick up next byte in sequence.
  31964 INC HL        ;  x_offset
@@ -3690,10 +3736,12 @@ c31960 CALL 32374    ; Prime jump at 32362, consumes A
  31981 POP HL        ;
  31982 JR 31963      ; Go back for next pixel in the sprite data
 
-; Unused
+; Data block at 31984
+@label=_BURBLER_DE_STASH
 s31984 DEFS 2        ; Temp store for DE while sound burbler runs
 
 ; Data block at 31986
+@label=_BURBLER_PORT254_SHADOW
 b31986 DEFB 0        ; Beeper's border protection value is stored here
 
 ; Sound burbler
@@ -3707,6 +3755,7 @@ b31986 DEFB 0        ; Beeper's border protection value is stored here
 ;.
 ; It walks the sequence and stops when DE is pointing to a zero byte.
 ; It returns to that location+1
+@label=sound_burbler
 c31987 LD (31984),DE ; Save DE somewhere
  31991 POP DE        ; DE takes return address from the stack
  31992 PUSH BC       ; Save
@@ -3738,18 +3787,28 @@ c31987 LD (31984),DE ; Save DE somewhere
  32029 LD DE,(31984) ; Put DE back as it was at entry
  32033 RET           ;
 
-; Toggle speaker bit, causes a click based on the given pitch
+; Click speaker bit, causes 2 clicks separated by the given pitch
 ;
-; This calls forward into itself as a sort of subroutine. That does the pitch
-; pause, then toggles the bit, then returns. A small delay, then it does it
-; again - pitch pause, then toggle the bit back again.
+; This calls the toggle speaker routine for one click, makes a very brief
+; delay (4 NOPs) then drops through to the toggle_speaker routine which
+; follows to toggle the bit back again.
+;.
+; The pitch is implemented in the routine this calls.
 ;
 ; Input:C Pitch
-c32034 LD A,(31986)  ; This must be picking up a saved border colour?
+@label=click_speaker
+c32034 LD A,(31986)  ; Pick up saved border colour
  32037 CALL 32044    ; Call forward to the toggle routine then drop through and
                      ; do it again
- 32040 LD B,4        ; {Small delay times 4
-*32042 DJNZ 32042    ; }
+ 32040 LD B,4        ; {13Ts delay times 4
+*32042 DJNZ 32042    ; then drop through}
+; Toggle speaker bit, causes a click based on the given pitch
+;
+; A small delay based on pitch, then toggle the speaker bit
+; for a single click.
+;
+; Input:C Pitch
+@label=toggle_speaker
 *32044 LD B,C        ; C contains a delay factor
 *32045 NOP           ; 4Ts
  32046 NOP           ; 4Ts
@@ -3857,6 +3916,7 @@ b32180 DEFB 126,126,24,24,24,24,24,24
 ; I:C xpos char
 ; I:B ypos char
 ; O:DE Screen address
+@label=cxy2saddr
 c32254 LD D,B        ; {No idea how this is working.
  32255 XOR A         ; 
  32256 RR B          ; asm_zx_cxy2saddr in z88dk is
@@ -3945,6 +4005,7 @@ c32307 LD C,(HL)     ;
 ; I:B cy
 ; I:C cx
 ; O:HL aaddr of cx,cy
+@label=cxy2aaddr
 c32343 LD A,B        ;
  32344 OR 192        ; Input B with top 2 bits now set
  32346 LD L,A        ;
@@ -3963,6 +4024,7 @@ c32343 LD A,B        ;
 
 ; A 2 byte entry from the table at 32362 is copied into here by the ship
 ; drawing routine. It's used as a destination for the jump at 32362
+@label=_UPDATE_PIXEL_TRAMPOLINE
 s32360 DEFS 2
 
 ; Update pixel
@@ -3972,6 +4034,7 @@ s32360 DEFS 2
 ;
 ; I:B ypos
 ; I:C xpos
+@label=update_pixel
 c32362 LD HL,(32360) ;
  32365 JP (HL)       ;
 
@@ -3979,6 +4042,7 @@ c32362 LD HL,(32360) ;
 ;
 ; 0x7B92, 0x7B98, 0x7B9F, 0x7BA5
 ;  31634   31640   31647   31653
+@label=_UPDATE_PIXEL_JUMP_TABLE
 b32366 DEFB 146,123,152,123,159,123,165,123
 
 ; Prime pixel update
@@ -3991,6 +4055,7 @@ b32366 DEFB 146,123,152,123,159,123,165,123
 ; A=0 31634 (set routine) A=1 31640 (clear) A=2 31647 (xor) A=3 31653 (clear byte)
 ;
 ; Input:A 0 to 3, mode. 0=Set, 1=Clear, 2=XOR, 3=Clear byte
+@label=prime_update_pixel_trampoline
 c32374 PUSH HL       ; Save regs
  32375 PUSH BC       ;
  32376 AND 3         ; Bottom 2 bits only
