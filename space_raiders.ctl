@@ -2,138 +2,10 @@
 @ 16384 org
 b 16384 Data block at 16384
 D 16384 #SCR(loading)
-B 16384,608,16
-t 16992 Message at 16992
-T 16992,5,5
-b 16997 Data block at 16997
-B 16997,33,8*4,1
-t 17030 Message at 17030
-T 17030,3,3
-b 17033 Data block at 17033
-B 17033,253,8*31,5
-t 17286 Message at 17286
-T 17286,3,3
-b 17289 Data block at 17289
-B 17289,509,8*63,5
-t 17798 Message at 17798
-T 17798,3,3
-b 17801 Data block at 17801
-B 17801,253,8*31,5
-t 18054 Message at 18054
-T 18054,3,3
-b 18057 Data block at 18057
-B 18057,9,8,1
-t 18066 Message at 18066
-T 18066,3,3
-b 18069 Data block at 18069
-B 18069,2764,8*345,4
-t 20833 Message at 20833
-T 20833,6,6
-b 20839 Data block at 20839
-B 20839,68,8*8,4
-t 20907 Message at 20907
-T 20907,3,3
-b 20910 Data block at 20910
-B 20910,179,8*22,3
-t 21089 Message at 21089
-T 21089,3,3
-b 21092 Data block at 21092
-B 21092,5,5
-t 21097 Message at 21097
-T 21097,4,4
-s 21101 Unused
-S 21101,1,1
-t 21102 Message at 21102
-T 21102,3,3
-b 21105 Data block at 21105
-B 21105,2,2
-t 21107 Message at 21107
-T 21107,4,4
-b 21111 Data block at 21111
-B 21111,2,2
-t 21113 Message at 21113
-T 21113,3,3
-b 21116 Data block at 21116
-B 21116,46,8*5,6
-t 21162 Message at 21162
-T 21162,4,4
-b 21166 Data block at 21166
-B 21166,179,8*22,3
-t 21345 Message at 21345
-T 21345,3,3
-b 21348 Data block at 21348
-B 21348,10,8,2
-t 21358 Message at 21358
-T 21358,4,4
-b 21362 Data block at 21362
-B 21362,6,6
-t 21368 Message at 21368
-T 21368,7,7
-b 21375 Data block at 21375
-B 21375,50,8*6,2
-t 21425 Message at 21425
-T 21425,3,3
-b 21428 Data block at 21428
-B 21428,177,8*22,1
-t 21605 Message at 21605
-T 21605,3,3
-b 21608 Data block at 21608
-B 21608,1,1
-t 21609 Message at 21609
-T 21609,4,4
-s 21613 Unused
-S 21613,1,1
-t 21614 Message at 21614
-T 21614,4,4
-b 21618 Data block at 21618
-B 21618,2,2
-t 21620 Message at 21620
-T 21620,3,3
-s 21623 Unused
-S 21623,1,1
-t 21624 Message at 21624
-T 21624,4,4
-b 21628 Data block at 21628
-B 21628,47,8*5,7
-t 21675 Message at 21675
-T 21675,3,3
-b 21678 Data block at 21678
-B 21678,179,8*22,3
-t 21857 Message at 21857
-T 21857,3,3
-b 21860 Data block at 21860
-B 21860,10,8,2
-t 21870 Message at 21870
-T 21870,4,4
-b 21874 Data block at 21874
-B 21874,6,6
-t 21880 Message at 21880
-T 21880,4,4
-b 21884 Data block at 21884
-B 21884,229,8*28,5
-t 22113 Message at 22113
-T 22113,6,6
-b 22119 Data block at 22119
-B 22119,8,8
-t 22127 Message at 22127
-T 22127,3,3
-b 22130 Data block at 22130
-B 22130,6,6
-t 22136 Message at 22136
-T 22136,6,6
-b 22142 Data block at 22142
-B 22142,44,8*5,4
-t 22186 Message at 22186
-T 22186,3,3
-b 22189 Data block at 22189
-B 22189,3,3
-t 22192 Message at 22192
-T 22192,4,4
-b 22196 Data block at 22196
-B 22196,1099,8*137,3
-b 23295 End of loading screen
-B 23295,1,1
-i 23296
+B 16384,7240,16*38,8
+b 23624 Port 254 shadow
+S 23624,1,1:n
+B 23625,21,8*2,5
 t 23646 Message at 23646
 T 23646,3,3
 b 23649 Data block at 23649
@@ -163,19 +35,24 @@ T 24584,4,4
 b 24588 Data block at 24588
 B 24588,17,8*2,1
 b 24605 Game runtime data
+@ 24605 label=_GAME_RUNTIME_DATA
+@ 24605 label=_SPEED_FACTOR
 B 24605,1,1 Speed factor, doesn't change
 B 24606,5,1
+@ 24611 label=_LIVES_REMAINING
 B 24611,1,1 Number of lives player has left
 B 24612,3,1
 b 24615 Data block at 24615
 B 24615,23,5,8*2,2
+@ 24638 label=_PLAYER_XPOS
 B 24638,1,1 Player ship pos, X
-B 24639,1,1
+@ 24639 label=_PLAYER_YPOS
+B 24639,1,1 Player ship pos, Y
+@ 24640 label=_YPOS_ADJUST
 B 24640,1,1 Player ship adjustment, -1, 0 or +1
-B 24641,12,4,8
-B 24652,1,1 Fire has been pressed flag
-B 24653,1,1
+B 24641,13,1*2,2,7,1
 b 24654 Game initialisation data
+@ 24654 label=_GAME_INIT_DATA
 B 24654,1,1 Speed factor
 B 24655,5,1
 B 24660,1,1 Number of lives player starts with
@@ -184,6 +61,7 @@ b 24664 Data block at 24664
 B 24664,39,4,8*4,3
 c 24703 Start of game, from LOADer and new game loop
 D 24703 Used by the routine at #R25160.
+@ 24703 label=start
 C 24703,1 start here
 C 24704,3 Game data initialisation, copies 10 bytes
 C 24707,3 Clear screen pixels
@@ -191,13 +69,19 @@ C 24710,3 ???
 C 24713,3 Draw lives as ships on top row
 N 24716 This entry point is used by the routine at #R24919. Top of game loop?
 N 24737 This entry point is used by the routine at #R24868.
+C 24761,3 Lives remaining
+C 24777,3 Lives remaining
 N 24791 Return to top of game loop
-s 24794 Unused
+s 24794 Storage byte for routine that follows
+@ 24794 label=_UNKNOWN1
 S 24794,1,1
 c 24795 Routine at 24795
 D 24795 Used by the routine at #R24703.
+C 24795,8 Pick up storage byte Decrement it and return if it's not zero
 N 24806 This entry point is used by the routine at #R24703.
 c 24823 Reset game data
+D 24823 Used by the routine at #R24703.
+@ 24823 label=reset_game_data
 C 24823,3 Initialisation data
 C 24826,3 Play data
 C 24829,3 10 bytes
@@ -210,14 +94,17 @@ C 24874,3 Load A with speed factor
 C 24877,3 Busy wait a multiple of 'A' states
 C 24880,3 Player ship position adjustment, -1, 0 or 1
 c 24908 delay_ms (approx)
-D 24908 Busy wait routine, pauses around 4360 * 'A' Ts, which is about 1.25ms on the 3.5MHz Z80.
-R 24908 A:Number of 4360Ts to spin for
+D 24908 Busy wait routine, pauses around 4360 * 'A' Ts. One iteration is about 1.25ms on the 3.5MHz Z80.
+R 24908 I:A Number of iterations to spin for
+@ 24908 label=delay_ms
 C 24909,1 11 Ts
 C 24910,5 256 NOPs 4 Ts 13Ts = ~4352 Ts
 c 24919 Count up to 7, no higher
 D 24919 Increments the number at 24614 up to 7, but no higher. Used by the routine at #R24703.
+@ 24919 label=count_to_7
 C 24931,3 Jump back into game loop???
 s 24934 Unused
+@ 24934 label=_UNKNOWN2
 S 24934,1,1
 c 24935 Routine at 24935
 D 24935 Used by the routines at #R24989, #R25034 and #R25643.
@@ -225,9 +112,11 @@ c 24989 Routine at 24989
 D 24989 Used by the routine at #R24703.
 N 25011 This entry point is used by the routine at #R25034.
 s 25033 Unused
+@ 25033 label=_UNKNOWN3
 S 25033,1,1
 c 25034 Draw lives remaining on top row
 D 25034 Used by the routines at #R24703 and #R25105.
+@ 25034 label=draw_lives_remaining
 C 25034,3 Select 0th row
 C 25037,3 Clear it
 C 25040,3 Pick up number of lives remaining
@@ -243,27 +132,48 @@ C 25087,4 Player ship pos, X, but why 16 bits?
 N 25094 This entry point is used by the routine at #R24703.
 c 25105 Routine at 25105
 D 25105 Used by the routine at #R24703.
-C 25133,3 Something to do with port 254?
-C 25138,2 Null out bottom 3 bits - border?
+C 25110,9 If this goes greater than 100 then an extra life is awarded. It's not the score though.
+C 25124,7 Lives remaining Add extra life
+N 25133 This entry point is used by the routine at #R25155.
+C 25133,3 Pick up port 254 shadow
+C 25136,2 Don't know what this is for
+C 25138,2 Null out bottom 3 bits - border black
 C 25140,3 Put it back
 C 25143,3 Sound burbler
-c 25160 Routine at 25160
-D 25160 Used by the routine at #R24703.
+B 25146,9,8,1 Extra life sound
+C 25155 Sound burbler return point
+c 25160 Game over
+D 25160 By the time it gets here the burbler has beeped to indicate the playe has been hit.
+R 25160 Used by the routine at #R24703.
+@ 25160 label=game_over
+C 25160,3 It doesn't come back from this, the return address is popped and JP (HL) happens
+b 25163 Data follows, I think
+C 25163,1
 N 25164 This entry point is used by the routine at #R25105.
+C 25164,3
 N 25167 This entry point is used by the routine at #R25105.
+C 25167,31
+N 25198 Siren for game over
+C 25198,2
 C 25200,3 Sound burbler
-N 25216 Game over, wait for fire to be pressed
+B 25203,11,8,3 Data for game over siren
+N 25214 Sound burbler return point
+@ 25214 label=game_over_siren
+C 25214,2 Repeat x25
+N 25216 Wait for fire to be pressed
 C 25216,3 Read keyboard
-C 25219,6 Has fire pressed flag gone true? If so, loop back and read the keyboard again
+C 25219,6 Has fire pressed flag gone true? If not, loop back and read the keyboard again
+C 25225,3 Jump back to start of main loop for new game
 c 25228 Routine at 25228
 D 25228 Used by the routine at #R24703.
 N 25231 This entry point is used by the routine at #R25160.
+C 25233,3 Copy into port 254 shadow
 N 25239 This entry point is used by the routine at #R25160.
 N 25247 This entry point is used by the routine at #R25160.
 N 25250 This entry point is used by the routine at #R25160.
 C 25252,3 Sound burbler
-N 25255 This entry point is used by the routine at #R25160.
-N 25256 This entry point is used by the routine at #R25160.
+B 25255,3,3 Screen cleared sound ???
+N 25258 Sound burbler return point
 C 25258,3 Row 1, col 0, score and lives row
 C 25261,3 INK colour from here
 C 25265,2 The full row (32 cells)
@@ -279,20 +189,38 @@ D 25442 Used by the routine at #R24703.
 N 25537 This entry point is used by the routines at #R25592 and #R26225.
 C 25541,3 Row 1
 C 25544,3 Clear row
+C 25547,2 Mode clear
+C 25549,3 Clear sprite
+C 25552,1 Mode set
+C 25553,3 Draw sprite
 c 25592 Routine at 25592
 D 25592 Used by the routine at #R25442.
+@ 25592 label=hit_spaceship
+C 25592,6 One of these will show the score for the spaceship???
 C 25598,3 Sound burbler
+B 25601,21,8*2,5 Hit spaceship sound
+N 25622 Sound burbler return point
 C 25622,3 Row 1
 C 25625,3 Clear row
-c 25628 Routine at 25628
+c 25628 Spaceship noise
 D 25628 Used by the routine at #R25442.
+@ 25628 label=spaceship_noise
 C 25628,3 Sound burbler
+B 25631,7,7 Spaceship noise
+C 25638,1 Sound burbler return point
 b 25639 Data block at 25639
 B 25639,4,4
-c 25643 Routine at 25643
+c 25643 Hit spaceship
 D 25643 Used by the routine at #R25592.
-c 25686 Routine at 25686
+C 25643,3 ???
+C 25647,2 Bottom 2 bits
+C 25649,3 0x6427, H=100 L=39
+C 25652,3 Add A to HL
+C 25655,1 ???
+C 25657,9 Add A to contents of 24603
+c 25686 Add A to HL
 D 25686 Used by the routine at #R25643.
+@ 25686 label=add_a_to_hl
 b 25691 Data block at 25691
 B 25691,17,8*2,1
 c 25708 Routine at 25708
@@ -302,22 +230,43 @@ D 25737 Used by the routines at #R25708 and #R25976.
 c 25749 Routine at 25749
 D 25749 Used by the routine at #R25708.
 C 25769,3 Player ship pos, X
+C 25802,3 IX = 27327 + ( 'A' * 706 )
 c 25853 Routine at 25853
 D 25853 Used by the routine at #R25708.
+C 25856,2 Mode clear
+C 25858,3 Clear sprite
 N 25875 This entry point is used by the routine at #R25994.
+C 25897,1 Mode set
+C 25898,3 Draw sprite
 C 25905,3 Player ship pos, X
 C 25917,3 Player ship pos, X
+C 25922,3 Pick up port 254 shadow
+C 25925,2 ???
+C 25927,2 Mask out bottom 3 bits, border black
+C 25929,3 Put it back
 C 25932,3 Sound burbler
+B 25935,9,8,1 Player hit noise
+N 25944 Sound burbler return point
+C 25944,2 Repeat player hit *8
 C 25946,3 Clear bottom row
 C 25949,3 Sound burbler
+B 25952,7,7 Game over sound No, can't be, the check is below
+N 25959 Sound burbler return point
+C 25959,7 Lives remaining Lost life?
 c 25976 Routine at 25976
 D 25976 Used by the routines at #R25853 and #R26225.
 N 25981 This entry point is used by the routine at #R25853.
 c 25994 Routine at 25994
 D 25994 Used by the routine at #R25853.
 c 26001 Clear bottom character row
+D 26001 Used by the routines at #R25853 and #R26225.
+@ 26001 label=clear_bottom_char_row
 C 26001,3 Top scan of bottom row of the screen, where the ship is
 c 26004 Clear one character row
+D 26004 Takes the address of the top scan byte of the leftmost char in a row of 32 chars and sets them to zero. So it clears 32 chars, 8 scans high, starting at DE.
+R 26004 Used by the routines at #R25034, #R25442, #R25592, #R30995 and #R31327.
+N 26004 I:DE Top scan of screen char to start clearing at
+@ 26004 label=clear_char_row
 C 26004,2 We're going to clear 8 scans at screen address in DE
 C 26007,8 Screen width is 32 bytes, write zero into each byte
 C 26015,1 Down one scan (this won't work across boundaries)
@@ -325,11 +274,14 @@ C 26016,1 Back for next scan
 c 26020 Routine at 26020
 D 26020 Used by the routines at #R25976 and #R26490.
 N 26023 This entry point is used by the routine at #R25853.
+C 26028,2 Mode clear
+C 26030,3 Clear sprite
 N 26033 This entry point is used by the routine at #R25853.
 c 26038 Routine at 26038
 D 26038 Used by the routine at #R24703.
 c 26049 Routine at 26049
 D 26049 Used by the routine at #R26038.
+C 26068,3 IX = 27327 + ( 'A' * 706 )
 b 26097 Data block at 26097
 B 26097,13,8,5
 t 26110 Message at 26110
@@ -341,13 +293,23 @@ D 26154 Used by the routines at #R25749 and #R26049.
 c 26225 Routine at 26225
 D 26225 Used by the routine at #R26049.
 C 26246,3 Sound burbler
+B 26249,9,8,1 Alien hit sound
+N 26258 Sound burbler return point
+C 26288,3 Pick up port 254 shadow
+C 26291,2 ???
+C 26293,2 Mask out bottom 3 bits, border black
+C 26295,3 Put it back
 C 26298,3 Sound burbler
+B 26301,9,8,1 Last alien hit sound
+N 26310 Sound burbler return point
 C 26315,3 Clear bottom row
 c 26320 Routine at 26320
 D 26320 Used by the routine at #R26225.
 c 26337 Routine at 26337
 D 26337 Used by the routine at #R26225.
+C 26341,3 cxy2saddr: DE = screen address of char C,B
 N 26355 This entry point is used by the routine at #R26225.
+C 26355,3 cxy2saddr: DE = screen address of char C,B
 c 26375 Routine at 26375
 D 26375 Used by the routine at #R26225.
 b 26459 Data block at 26459
@@ -362,9 +324,8 @@ c 26490 Routine at 26490
 D 26490 Used by the routine at #R26038.
 N 26503 This entry point is used by the routine at #R26541.
 C 26528,3 Sound burbler
-b 26534 Data block at 26534
-B 26534,4,4
-c 26538 Routine at 26538
+B 26531,7 Hit alien bullet sound
+C 26538 Sound burbler return point
 c 26541 Routine at 26541
 D 26541 Used by the routine at #R26490.
 c 26566 Routine at 26566
@@ -375,6 +336,7 @@ c 26587 Keypress detection
 D 26587 Used by the routines at #R25160 and #R26566
 D 26587 ???? Still not worked out how B being held is propogated ????
 R 26587 O:24652 (fire pressed flag) set 1 if fire has been pressed
+@ 26587 label=read_keyboard
 C 26587,3 0xFEFE - matrix SHIFT, Z, X, C, V
 C 26590,2 Read port into E
 C 26592,3 0xF7FE - matrix 1, 2, 3, 4, 5
@@ -427,44 +389,82 @@ C 26678,2 Ship doesn't need to move, just return
 C 26680,4 Set A to 0 if there's an odd number of bits. I think this is a sanity check?
 C 26684,4 IX points to player ship pos, X
 C 26688,3 Set HL to 26722 if A != 0, or 26796 if A == 0
+C 26691,2 Mode clear
+C 26693,3 Clear sprite
+C 26696,1 Mode set
+C 26697,3 Draw sprite
 C 26704,3 Player ship pos, X
 C 26708,3 Player ship pos, X
 c 26712 Set HL to 26722 or 26796
 D 26712 If A isn't zero, return 26722 in HL If A is zero, return 26796 in HL.
 b 26721 Keypress routine's fire-released flag
 D 26721 This is set 1 when the fire key is released. It's set 0 when the fire key is pressed. If it's found to be 0 when the fire key is read as pressed the fire-pressed flag is held at 0. In order words the fire-pressed flag will only go true when this is 1, and it's only set 1 when the fire key is found to be released
+@ 26721 label=_FIRE_RELEASED
 B 26721,1,1 Fire released flag, local to keypress routine
-b 26722 Data block at 26722
-B 26722,161,7,8*19,2
+b 26722 Player ship sprite data. x,y pairs, each giving a single pixel Pixels to clear as sprite moves left or right.
+@ 26722 label=_PLAYER_SHIP_CLEAR1
+B 26722,37,7,8*3,6
+N 26759 Other direction
+@ 26759 label=_PLAYER_SHIP_CLEAR2
+B 26759,37,2,8*4,3
+b 26796 Same as above, but flipped??? Not sure
+@ 26796 label=_PLAYER_SHIP_CLEAR3
+B 26796,37,5,8
+N 26833 Other direction
+@ 26833 label=_PLAYER_SHIP_CLEAR4
+B 26833,38,8*4,5,1
+N 26871 This looks like a vertical line, might be a bullet?
+@ 26871 label=_BULLET
+B 26871,12,3,8,1
 c 26883 Routine at 26883
 D 26883 Used by the routine at #R26566.
 C 26883,3 Sound burbler
-C 26898,3 Player ship pos, X
+B 26886,7 Player fire sound
+N 26893 Sound burbler return point
 c 26916 Routine at 26916
 D 26916 Used by the routine at #R26566.
+C 26923,2 Mode clear
+C 26925,3 Clear sprite
 N 26940 This entry point is used by the routine at #R26883.
+C 26943,1 Mode set
+C 26944,3 Draw sprite
 c 26947 Routine at 26947
 D 26947 Used by the routines at #R26225, #R26538 and #R26541.
+C 26954,2 Mode clear
+C 26956,3 Clear sprite
 N 26959 This entry point is used by the routine at #R26916.
 s 26964 Unused
 S 26964,1,1
 c 26965 Draw player ship and scroll it into position.
 D 26965 Used by the routine which draws lives remaining at the top, and when the a new life appears at the bottom after dying
+@ 26965 label=new_player_ship
 C 26965,2 Set by one of the subroutines, ???
 C 26968,5 Set up adjustment of -1, which means 1 pixel left
 C 26973,3 Player ship pos, X
 C 26981,3 Player ship pos, X
 C 26987,3 Sound burbler
+B 26990,3,3 Move player ship sound? Maybe new player ship sound?
+N 26993 Sound burbler return point
 c 27005 Routine at 27005
 D 27005 Used by the routine at #R27030.
 s 27029 Unused
 S 27029,1,1
 c 27030 Routine at 27030
 D 27030 Used by the routine at #R24703.
-c 27097 Routine at 27097
+c 27097 IX = 27327 + ( 'A' * 706 )
+D 27097 Guessing this is finding an entry in an array of data structures which are 706 bytes? That would be too big for the aliens?
+D 27097 27327 starts a large data block which starts off with the assembler strings and stuff, so it's being populated with some large amount of data.
 D 27097 Used by the routines at #R25749, #R26049, #R30857 and #R31075.
-c 27114 Routine at 27114
+R 27097 I:A Multiplier
+R 27097 O:IX 27327 + A*706
+@ 27097 label=multi_a_by_706_add_27327
+C 27101,2 If A is zero no multiplication is necessary
+c 27114 IX = 27127 + ( 'A' * 64 )
 D 27114 Used by the routine at #R27030.
+R 27114 I:A Multiplier
+R 27114 O:HL 27127 + A*64
+@ 27114 label=multi_a_by_64_add_27327
+C 27117,2 If A is zero no multiplication is necessary
 b 27127 Data block at 27127
 B 27127,202,8*25,2
 t 27329 Message at 27329
@@ -577,23 +577,33 @@ b 30760 Data block at 30760
 B 30760,97,8*12,1
 c 30857 Routine at 30857
 D 30857 Used by the routine at #R24795.
+C 30879,3 IX = 27327 + ( 'A' * 706 )
 C 30894,3 Sound burbler
+B 30897,6,6 Don't know what this is
+C 30903,3 ; Not sure where the sound return point is
 c 30995 Routine at 30995
 D 30995 Used by the routine at #R30857.
 C 30995,3 Sound burbler
+B 30998,4,4 ???
+C 31019,3 cxy2saddr: DE = screen address of char C,B
+C 31022,3 Clear one character row (32 chars)
 N 31030 This entry point is used by the routine at #R31064.
 C 31051,3 Sound burbler
+B 31054,4,4 ???
 c 31064 Routine at 31064
 D 31064 Used by the routine at #R30857.
 c 31075 Routine at 31075
 D 31075 Used by the routine at #R24703.
+C 31080,3 IX = 27327 + ( 'A' * 706 )
 C 31089,3 Sound burbler
+B 31092,2,2 ???
 s 31107 Unused
 S 31107,12,12
 c 31119 Routine at 31119
 D 31119 Used by the routines at #R26154, #R30857, #R30995 and #R31075.
 c 31198 Routine at 31198
 D 31198 Used by the routines at #R30995 and #R31075.
+C 31220,3 cxy2saddr: DE = screen address of char C,B
 c 31257 Routine at 31257
 D 31257 Used by the routine at #R31198.
 c 31290 Set INK colour of attributes
@@ -602,6 +612,7 @@ R 31290 I:B first cy
 R 31290 I:C first cx
 R 31290 I:D Number of attributes to set
 R 31290 I:E INK colour
+R 31290 @label=set_attributes_xy_n
 C 31290,3 Find attribute address of cy,cx in BC
 C 31293,3 Clear INK in attribute cell
 C 31296,1 Merge in E
@@ -610,6 +621,7 @@ C 31298,1 Next cell
 C 31299,1 Dec counter
 c 31303 Sets 2 rows to an INK colour
 D 31303 This might be setting the colour bands for the aliens?
+@ 31303 label=set_attribute_band
 C 31303,4 Pick up cy from here
 C 31307,2 cx is 0, start of row
 C 31309,3 0x6012
@@ -619,8 +631,14 @@ C 31321,1 E is INK colour
 C 31322,2 2 full rows
 C 31324,3 Set INK colour
 c 31327 Routine at 31327
+D 31327 Clear 3 rows... Might be the code to remove the barriers when the aliens get low
 D 31327 Used by the routine at #R30995.
+@ 31327 label=remove_barriers
+C 31335,3 Clear one character row (32 chars)
+C 31341,3 Clear one character row (32 chars)
+C 31347,3 Clear one character row (32 chars)
 C 31354,3 Sound burbler
+B 31357,2,2 ???
 b 31371 Data block at 31371
 B 31371,48,8
 t 31419 Message at 31419
@@ -642,42 +660,114 @@ B 31509,18,8*2,2
 c 31527 Routine at 31527
 D 31527 Used by the routines at #R25853 and #R26541.
 C 31621,3 Sound burbler
-c 31634 Routine at 31634
+B 31624,2,2 ???
+c 31634 Set pixel
+D 31634 Sets the screen pixel at x,y
 D 31634 This is the entry in the jump table handled by the routine at 32374 when that code is called with A=0
-c 31640 Routine at 31640
-D 31640 This is arrived at during the ship drawing code. It's in a jump table alongside 3 functions.
-R 31640 Used by the routine at #R31527.
-c 31647 Data block at 31647
-c 31653 Routine at 31653
-D 31653 Used by the routine at #R31527.
-b 31658 Data block at 31658
-c 31922 Routine at 31922
+R 31634 I:B ypos
+R 31634 I:C xpos
+@ 31634 label=pixel_set
+C 31634,3 pxy2saddr of B=ypos, C=xpos
+C 31637,1 Pick up screen byte
+C 31638,1 Merge in the required pixel
+c 31640 Clear pixel
+D 31640 Clears the screen pixel at x,y
+D 31640 This is the entry in the jump table handled by the routine at 32374 when that code is called with A=1
+R 31640 I:B ypos
+R 31640 I:C xpos
+@ 31640 label=pixel_clear
+C 31640,3 pxy2saddr of B=ypos, C=xpos
+C 31643,1 Invert pixel map
+C 31644,1 Pick up screen byte
+C 31645,1 Merge out the required pixel
+c 31647 XOR pixel
+D 31647 XORs the screen pixel at x,y
+D 31647 This is the entry in the jump table handled by the routine at 32374 when that code is called with A=2
+R 31647 I:B ypos
+R 31647 I:C xpos
+@ 31647 label=pixel_xor
+C 31647,3 pxy2saddr of B=ypos, C=xpos
+C 31650,1 Toggle screen bit
+C 31651,1 XOR in the required pixel
+c 31653 Clear screen byte but leave pixel
+D 31653 Clears the screen byte containing the screen pixel at x,y, leaving the indicated pixel on if it's already on, or off if it's already off.
+D 31653 This is the entry in the jump table handled by the routine at 32374 when that code is called with A=3
+R 31653 I:B ypos
+R 31653 I:C xpos
+@ 31653 label=pixel_clearbyte
+C 31653,3 pxy2saddr of B=ypos, C=xpos
+C 31656,1 Clear byte except the indicated pixel which is left
+b 31658 Screen address calculation table, used by px2saddr
+@ 31658 label=_PIXEL_DATA
+@ 31666 label=_PX2SADDR_DATA
+B 31658,264,8
+c 31922 pxy2saddr
+D 31922 Calculate the address of the display file byte and the pixel within it of the x,y pixel coords in C and B.
 D 31922 Used by the routines at #R31634, #R31640 and #R31653.
-c 31960 Routine at 31960
+R 31922 I:B ypos in pixels,
+R 31922 I:C xpos in pixels
+R 31922 O:HL display file byte address
+R 31922 O:A display file byte's pixel
+@ 31922 label=px2saddr
+C 31922,3 Table of clever values
+C 31925,3 DE is 8 bit y pos
+C 31928,1 Add offset to the table
+C 31929,1 H comes from that table location
+C 31930,1 L is xpos
+C 31931,1 Clear carry
+C 31932,4 HL = HL / 2
+C 31936,1 Set carry, this primes the 0x40.. display file address
+C 31937,4 HL = HL /2
+C 31941,1 Clear carry
+C 31942,4 HL = HL / 2
+C 31946,1 Result into DE for the moment
+C 31947,3 Divider table
+C 31950,1 xpos
+C 31951,2 Bottom 3 bits - 0 to 7
+C 31953,3 BC = offset into divider table
+C 31956,1 Find divider table location
+C 31957,1 A = pixel in the byte
+C 31958,1 Restore display file address into HL
+c 31960 Draw or undraw sprite
+D 31960 Draws or clears a sprite using a sequence of pixel sets or clears.
 D 31960 Used by the routines at #R25442, #R25853, #R26020, #R26675, #R26916 and #R26947.
-C 31960,3 Prime jump at 32362
-C 31978,3 Call to primed jump code
-s 31984
+R 31960 I:A Mode for pixel (0=set,1=clear,2=XOR,3=ClearByte)
+R 31960 I:HL Sprite data, list of x,y offset pairs, 0xFF to end
+R 31960 I:IX Pointer to xpos,ypos screen location (chars)
+@ 31960 label=sprite_draw_or_clear
+C 31960,3 Prime jump at 32362, consumes A
+C 31963,4 Pick up next byte in sequence. x_offset End if negative number
+C 31967,3 IX+0 points to xpos
+C 31970,1 C=xpos + x_offset
+C 31971,2 Pick up next byte in sequence. y_offset
+C 31973,3 IX+1 points to ypos
+C 31976,1 B=ypos + y_offset
+C 31978,3 Update pixel at C,B according to input mode
+C 31982,2 Go back for next pixel in the sprite data
+s 31984 Data block at 31984
+@ 31984 label=_BURBLER_DE_STASH
 S 31984,2,2 Temp store for DE while sound burbler runs
-b 31986
+b 31986 Data block at 31986
+@ 31986 label=_BURBLER_PORT254_SHADOW
 B 31986,1,1 Beeper's border protection value is stored here
 c 31987 Sound burbler
-D 31987 Loop over a sequence of pitch/length pairs, calling the beeper with each
-D 31987 I'm still not sure what the preamble does. It think it's setting the border colour such that sending toggles to port 254 doesn't change the border.
-R 31987 Input:DE pointer to sequence of pitch/length tuples
+D 31987 Loop over a sequence of pitch/length pairs, calling the beeper with each. The data sequence is at the caller location, so this picks it up from the return address.
+D 31987 This contains the rolling border effect which accompanies the end of game siren, etc.
+D 31987 It walks the sequence and stops when DE is pointing to a zero byte. It returns to that location+1
+@ 31987 label=sound_burbler
 C 31987,4 Save DE somewhere
-C 31991,1 Take DE from the stack
+C 31991,1 DE takes return address from the stack
 C 31992,1 Save
 C 31993,1 Save
 C 31994,1 Save
-C 31995,3 A comes from this location
-C 31998,2 Mask out bottom 3 bits
-C 32000,1 Rotate down 3 bits
-C 32003,2 Set this bit
+C 31995,3 Pick up port 254 shadow
+C 31998,2 Bottom 3 bits zero
+C 32000,1 Rotate down 3 bits, sets the border colour
+C 32003,2 Set the MIC bit
 C 32005,3 Save result, it's picked up by the beeper routine
 C 32008,1 DE was pointing to something interesting
 C 32009,1 Next byte, whatever it is
-C 32010,3 If it's zero we're done
+C 32010,3 If it's zero we're done and DE is pointing to the location to return to
 C 32013,1 Low byte from (DE) into L, it's a count of something
 C 32014,1 High byte from (DE) into A, it's the pitch
 C 32015,1 Move on ready for next one
@@ -688,14 +778,18 @@ C 32023,2 Next note, or whatever it is
 C 32025,1 Restore
 C 32026,1 Restore
 C 32027,1 Restore
-C 32028,1 Put DE back on stack
+C 32028,1 Restore return address
 C 32029,4 Put DE back as it was at entry
-c 32034 Toggle speaker bit, causes a click based on the given pitch
-D 32034 This calls forward into itself as a sort of subroutine. That does the pitch pause, then toggles the bit, then returns. A small delay, then it does it again - pitch pause, then toggle the bit back again.
+c 32034 Click speaker bit, causes 2 clicks separated by the given pitch
+D 32034 This calls the toggle speaker routine for one click, makes a very brief delay (4 NOPs) then drops through to the toggle_speaker routine which follows to toggle the bit back again.
+D 32034 The pitch is implemented in the routine this calls.
 R 32034 Input:C Pitch
-C 32034,3 This must be picking up a saved border colour?
+@ 32034 label=click_speaker
+C 32034,3 Pick up saved border colour
 C 32037,3 Call forward to the toggle routine then drop through and do it again
-C 32040,4 Small delay times 4
+C 32040,4 13Ts delay times 4 then drop through
+N 32044 Toggle speaker bit, causes a click based on the given pitch A small delay based on pitch, then toggle the speaker bit for a single click. Input:C Pitch
+@ 32044 label=toggle_speaker
 C 32044,1 C contains a delay factor
 C 32045,1 4Ts
 C 32046,1 4Ts
@@ -720,10 +814,17 @@ t 32176 Message at 32176
 T 32176,4,4
 b 32180 Data block at 32180
 B 32180,74,8*9,2
-c 32254 Routine at 32254
+c 32254 cxy2saddr
+D 32254 Screen address of top pixel row of character square at x,y.
 D 32254 Used by the routines at #R26337, #R30995, #R31198 and #R32275.
+R 32254 I:C xpos char
+R 32254 I:B ypos char
+R 32254 O:DE Screen address
+@ 32254 label=cxy2saddr
+C 32254,20 No idea how this is working. asm_zx_cxy2saddr in z88dk is more efficient
 c 32275 Routine at 32275
 D 32275 Used by the routines at #R24935 and #R32307.
+C 32275,3 cxy2saddr: DE = screen address of char C,B
 c 32287 Clear screen pixel data
 D 32287 Zeroes 6144 bytes starting at 0x4000
 @ 32287 label=clear_pixels
@@ -743,6 +844,7 @@ D 32343 Find attribute address from cx,cy
 R 32343 I:B cy
 R 32343 I:C cx
 R 32343 O:HL aaddr of cx,cy
+@ 32343 label=cxy2aaddr
 C 32344,2 Input B with top 2 bits now set
 C 32347,2 HL is now 0x02Cx, where x came from B
 C 32349,1 x2
@@ -755,15 +857,22 @@ C 32355,2 Add as offset
 C 32357,2 If cx was greater than 32 move to next row
 C 32359,1 Result address in HL
 s 32360 A 2 byte entry from the table at 32362 is copied into here by the ship drawing routine. It's used as a destination for the jump at 32362
+@ 32360 label=_UPDATE_PIXEL_TRAMPOLINE
 S 32360,2,2
-c 32362 Jump to pre-selected routine held at address 32360.
-b 32366 This appears to be a jump table with 4 entries.
+c 32362 Update pixel
+D 32362 Jump to pre-selected display update routine primed at address 32360. This will set, clear, XOR or clear-byte of xpos,ypos in C and B
+R 32362 I:B ypos
+R 32362 I:C xpos
+@ 32362 label=update_pixel
+b 32366 This is a jump table with 4 entries.
 D 32366 0x7B92, 0x7B98, 0x7B9F, 0x7BA5 31634   31640   31647   31653
+@ 32366 label=_UPDATE_PIXEL_JUMP_TABLE
 B 32366,8,8
-c 32374 Prime jump code at 32362
-D 32374 Select an entry from the jump table at 32366, copy the entry to the 2 bytes of storage at 32360. This primes the jump code at 32362.
-D 32374 ??? Dunno what it actually does though.
-R 32374 Input:A 0 to 3, which pair to copy
+c 32374 Prime pixel update
+D 32374 Sets up a call to 32362 ready to update a screen pixel according to the mode passed in here.
+D 32374 Select an entry from the jump table at 32366, copy the entry to the 2 bytes of storage at 32360. This primes the jump code at 32362 with A=0 31634 (set routine) A=1 31640 (clear) A=2 31647 (xor) A=3 31653 (clear byte)
+R 32374 Input:A 0 to 3, mode. 0=Set, 1=Clear, 2=XOR, 3=Clear byte
+@ 32374 label=prime_update_pixel_trampoline
 C 32374,1 Save regs
 C 32376,2 Bottom 2 bits only
 C 32378,1 HL = A
@@ -774,6 +883,7 @@ C 32386,3 2 byte result goes here
 C 32389,6 Copy 2 bytes from jump table entry to result
 C 32395,1 Restore regs
 c 32398 Multiply A by 8, then add (23606)
+D 32398 Used by the routine at #R32307.
 C 32399,3 A into HL
 C 32402,1 x2
 C 32403,1 x4
