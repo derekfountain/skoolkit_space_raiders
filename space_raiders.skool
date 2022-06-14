@@ -867,7 +867,10 @@ b16384 DEFB 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
  23576 DEFB 1,0,6,0,16,0,0,0
  23584 DEFB 0,0,0,0,0,0,0,0
  23592 DEFB 0,0,0,0,0,0,0,0
- 23600 DEFB 0,0,0,0,0,0,0,60
+ 23600 DEFB 0,0,0,0,0,0
+@label=_BARRIERS_SOMETHING
+ 23606 DEFB 0
+ 23607 DEFB 60
  23608 DEFB 64,0,255,205,0,177,95,0
  23616 DEFB 0,0,10,0,255,10,0,7
 
@@ -1278,7 +1281,7 @@ c24989 LD DE,(24603) ;
 *25005 LD HL,0       ;
  25008 LD (24603),HL ;
 ; This entry point is used by the routine at #R25034.
-*25011 CALL 32302    ;
+*25011 CALL 32302    ; Print string which follows this instruction
  25014 DEC D         ;
  25015 NOP           ;
  25016 LD C,B        ;
@@ -1370,8 +1373,7 @@ c25105 LD A,(24609)                 ; {Check if extra life has been awarded.
 ;
 ; Used by the routine at #R24703.
 @label=game_over
-c25160 CALL 32302    ; It doesn't come back from this, the return address is
-                     ; popped and JP (HL) happens
+c25160 CALL 32302    ; Print string which follows this instruction
 
 ; Data follows, I think
 b25163 NOP
@@ -3753,9 +3755,18 @@ c32254 LD D,B        ; {No idea how this is working. asm_zx_cxy2saddr in z88dk
  32273 LD D,A        ; }
  32274 RET           ;
 
-; Routine at 32275
+; Print UDG at HL to screen at BC
 ;
+; Plots 8 scan bytes in the character cell at C,B
+; from the UDG at HL. HL can point to the char set
+; in ROM.
+;.
 ; Used by the routines at #R24935 and #R32307.
+;
+; I:C char xpos
+; I:B char ypos
+; I:HL UDG data, 8 consequtive bytes
+@label=print_udg
 c32275 CALL 32254    ; cxy2saddr: DE = screen address of char C,B
  32278 LD B,8        ;
 *32280 LD A,(HL)     ;
@@ -3780,42 +3791,60 @@ c32287 LD HL,16384   ; Start of screen
  32299 JR NZ,32294   ;
  32301 RET           ;
 
-; Routine at 32302
+; Print string at return address
 ;
+; String to print follows the caller CALL instruction.
+; Return address is popped into HL, and that's used as
+; the location of the string. It then jumps to the 
+; instruction which follows the string.
+;.
 ; Used by the routines at #R24989 and #R25160.
-c32302 POP HL        ;
- 32303 CALL 32307    ;
- 32306 JP (HL)       ;
+@label=print_string_at_caller
+c32302 POP HL        ; Pick up return address, that's the data
+ 32303 CALL 32307    ; Call the string printer routine
+ 32306 JP (HL)       ; Now 'return' to the code at the end of the data
 
-; Draw a barrier
+; Print positioned string at HL
 ;
+; String data format is Y,X,c,c,c...
+;.
 ; Used by the routine at #R32302.
-c32307 LD C,(HL)     ; {(HL) into BC, incrementing HL
- 32308 INC HL        ;
- 32309 LD B,(HL)     ;
- 32310 INC HL        ; }
+;
+; I:HL Address of string
+@label=print_string_yxt_at_hl
+c32307 LD C,(HL)     ; {HL points to ypos,xpos.
+ 32308 INC HL        ; Put those in BC, incrementing HL
+ 32309 LD B,(HL)     ; }
+ 32310 INC HL        ; Drop into #R32311
+                    
+; Print string at HL
+;
 ; This entry point is used by the routine at #R31436.
-@label=draw_barrier
-*32311 LD A,(HL)     ; {Pick up byte at HL, return if zero
- 32312 INC HL        ;
+;
+; I:B xchar
+; I:C ychar
+; I:HL char sequence
+@label=print_string_at_hl
+c32311 LD A,(HL)     ; {Pick up byte at HL, return if zero
+ 32312 INC HL        ;  which indicates the end of the string
  32313 OR A          ;
  32314 RET Z         ; }
  32315 PUSH BC       ;
  32316 PUSH HL       ;
  32317 CALL 32398    ; HL = (A * 8) + (23606)
- 32320 CALL 32275    ;
+ 32320 CALL 32275    ; Draw UDG
  32323 POP HL        ;
  32324 POP BC        ;
- 32325 INC C         ;
+ 32325 INC C         ; xpos++
  32326 LD A,C        ;
- 32327 CP 32         ;
- 32329 JR NZ,32311   ;
- 32331 LD C,0        ;
- 32333 INC B         ;
- 32334 LD A,B        ;
- 32335 CP 24         ;
+ 32327 CP 32         ; Edge of screen?
+ 32329 JR NZ,32311   ; Back for next char
+ 32331 LD C,0        ; {Move to start of
+ 32333 INC B         ; next line
+ 32334 LD A,B        ; }
+ 32335 CP 24         ; Off bottom of screen?
  32337 JR NZ,32311   ;
- 32339 LD B,0        ;
+ 32339 LD B,0        ; Wrap to top of screen
  32341 JR 32311      ;
 
 ; Attribute address finder, cx,cy to attr address
