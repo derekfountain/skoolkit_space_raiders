@@ -1272,27 +1272,22 @@ c24935 LD (24934),A  ;
 ; Routine at 24989
 ;
 ; Used by the routine at #R24703.
-c24989 LD DE,(24603) ;
- 24993 LD HL,(24601) ;
- 24996 OR A          ;
- 24997 SBC HL,DE     ;
- 24999 JR NC,25005   ;
- 25001 LD (24601),DE ;
-*25005 LD HL,0       ;
- 25008 LD (24603),HL ;
+c24989 LD DE,(24603)  ;
+ 24993 LD HL,(24601)  ;
+ 24996 OR A           ;
+ 24997 SBC HL,DE      ;
+ 24999 JR NC,25005    ;
+ 25001 LD (24601),DE  ;
+*25005 LD HL,0        ;
+ 25008 LD (24603),HL  ;
 ; This entry point is used by the routine at #R25034.
-*25011 CALL 32302    ; Print string which follows this instruction
- 25014 DEC D         ;
- 25015 NOP           ;
- 25016 LD C,B        ;
- 25017 LD C,C        ;
- 25018 LD B,A        ;
- 25019 LD C,B        ;
- 25020 JR NZ,25022   ;
-*25022 LD BC,26      ;
- 25025 LD HL,(24601) ;
- 25028 LD A,5        ;
- 25030 JP 24935      ;
+*25011 CALL 32302     ; Print string which follows this instruction
+ 25014 DEFB 21,0      ;
+ 25016 DEFM "HIGH ",0 ;
+ 25022 LD BC,26       ;
+ 25025 LD HL,(24601)  ;
+ 25028 LD A,5         ;
+ 25030 JP 24935       ;
 
 ; Temporary store for the counter of lives remaining to draw
 @label=_DRAW_LIVES_REMAINING_COUNTER
@@ -1373,53 +1368,26 @@ c25105 LD A,(24609)                 ; {Check if extra life has been awarded.
 ;
 ; Used by the routine at #R24703.
 @label=game_over
-c25160 CALL 32302    ; Print string which follows this instruction
-
-; Data follows, I think
-b25163 NOP
-; This entry point is used by the routine at #R25105.
- 25164 RLA
- 25165 LD B,A
- 25166 LD B,C
-; This entry point is used by the routine at #R25105.
- 25167 LD C,L
- 25168 LD B,L
- 25169 JR NZ,25250
- 25171 LD D,(HL)
- 25172 LD B,L
- 25173 LD D,D
- 25174 JR NZ,25208
- 25176 JR NZ,25210
- 25178 JR NZ,25212
- 25180 JR NZ,25254
- 25182 LD C,C
- 25183 LD D,H
- 25184 JR NZ,25256
- 25186 LD C,C
- 25187 LD D,D
- 25188 LD B,L
- 25189 JR NZ,25275
- 25191 LD C,A
- 25192 JR NZ,25274
- 25194 LD C,H
- 25195 LD B,C
- 25196 LD E,C
- 25197 NOP
-; Siren for game over
- 25198 LD B,25
-*25200 CALL 31987                   ; Sound burbler
- 25203 DEFB 40,50,40,40,40,30,40,20 ; {Data for game over siren
- 25211 DEFB 40,10,0                 ; }
+c25160 CALL 32302                                     ; Print string which
+                                                      ; follows this
+                                                      ; instruction
+ 25163 DEFM 0,23,"GAME OVER       HIT FIRE TO PLAY",0 ;
+; Return here, play siren for game over
+ 25198 LD B,25                                        ;
+*25200 CALL 31987                                     ; Sound burbler
+ 25203 DEFB 40,50,40,40,40,30,40,20                   ; {Data for game over
+ 25211 DEFB 40,10,0                                   ; siren}
 ; Sound burbler return point
 @label=game_over_siren
- 25214 DJNZ 25200                   ; Repeat x25
+ 25214 DJNZ 25200                                     ; Repeat x25
 ; Wait for fire to be pressed
-*25216 CALL 26587                   ; Read keyboard
- 25219 LD A,(24652)                 ; {Has fire pressed flag gone true? If not,
- 25222 OR A                         ; loop back and read the keyboard again
- 25223 JR Z,25216                   ; }
- 25225 JP 24703                     ; Jump back to start of main loop for new
-                                    ; game
+*25216 CALL 26587                                     ; Read keyboard
+ 25219 LD A,(24652)                                   ; {Has fire pressed flag
+ 25222 OR A                                           ; gone true? If not, loop
+ 25223 JR Z,25216                                     ; back and read the
+                                                      ; keyboard again}
+ 25225 JP 24703                                       ; Jump back to start of
+                                                      ; main loop for new game
 
 ; Routine at 25228
 ;
@@ -1438,7 +1406,7 @@ c25228 LD A,(24593)   ;
  25247 DJNZ 25245     ;
  25249 DEC C          ;
 ; This entry point is used by the routine at #R25160.
-*25250 JR NZ,25245    ;
+ 25250 JR NZ,25245    ;
  25252 CALL 31987     ; Sound burbler
  25255 DEFB 100,100,0 ; Screen cleared sound ???
 ; Sound burbler return point
@@ -3297,7 +3265,11 @@ t31429 DEFM "5345"
 
 ; Unused
 s31433 DEFS 1
+
+; Unused
 s31434 DEFS 1
+
+; Unused
 s31435 DEFS 1
 
 ; Called at new screen of invaders
@@ -3757,10 +3729,9 @@ c32254 LD D,B        ; {No idea how this is working. asm_zx_cxy2saddr in z88dk
 
 ; Print UDG at HL to screen at BC
 ;
-; Plots 8 scan bytes in the character cell at C,B
-; from the UDG at HL. HL can point to the char set
-; in ROM.
-;.
+; Plots 8 scan bytes in the character cell at C,B from the UDG at HL. HL can
+; point to the char set in ROM.
+; .
 ; Used by the routines at #R24935 and #R32307.
 ;
 ; I:C char xpos
@@ -3793,11 +3764,10 @@ c32287 LD HL,16384   ; Start of screen
 
 ; Print string at return address
 ;
-; String to print follows the caller CALL instruction.
-; Return address is popped into HL, and that's used as
-; the location of the string. It then jumps to the 
+; String to print follows the caller CALL instruction. Return address is popped
+; into HL, and that's used as the location of the string. It then jumps to the
 ; instruction which follows the string.
-;.
+; .
 ; Used by the routines at #R24989 and #R25160.
 @label=print_string_at_caller
 c32302 POP HL        ; Pick up return address, that's the data
@@ -3807,16 +3777,16 @@ c32302 POP HL        ; Pick up return address, that's the data
 ; Print positioned string at HL
 ;
 ; String data format is Y,X,c,c,c...
-;.
+; .
 ; Used by the routine at #R32302.
 ;
 ; I:HL Address of string
 @label=print_string_yxt_at_hl
-c32307 LD C,(HL)     ; {HL points to ypos,xpos.
- 32308 INC HL        ; Put those in BC, incrementing HL
+c32307 LD C,(HL)     ; {HL points to ypos,xpos. Put those in BC, incrementing
+ 32308 INC HL        ; HL
  32309 LD B,(HL)     ; }
  32310 INC HL        ; Drop into #R32311
-                    
+
 ; Print string at HL
 ;
 ; This entry point is used by the routine at #R31436.
@@ -3825,8 +3795,8 @@ c32307 LD C,(HL)     ; {HL points to ypos,xpos.
 ; I:C ychar
 ; I:HL char sequence
 @label=print_string_at_hl
-c32311 LD A,(HL)     ; {Pick up byte at HL, return if zero
- 32312 INC HL        ;  which indicates the end of the string
+c32311 LD A,(HL)     ; {Pick up byte at HL, return if zero which indicates the
+ 32312 INC HL        ; end of the string
  32313 OR A          ;
  32314 RET Z         ; }
  32315 PUSH BC       ;
@@ -3839,8 +3809,8 @@ c32311 LD A,(HL)     ; {Pick up byte at HL, return if zero
  32326 LD A,C        ;
  32327 CP 32         ; Edge of screen?
  32329 JR NZ,32311   ; Back for next char
- 32331 LD C,0        ; {Move to start of
- 32333 INC B         ; next line
+ 32331 LD C,0        ; {Move to start of next line
+ 32333 INC B         ;
  32334 LD A,B        ; }
  32335 CP 24         ; Off bottom of screen?
  32337 JR NZ,32311   ;

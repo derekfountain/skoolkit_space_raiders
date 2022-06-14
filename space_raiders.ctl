@@ -2,7 +2,8 @@
 @ 16384 org
 b 16384 Data block at 16384
 D 16384 #SCR(loading)
-B 16384,7240,16*38,8
+@ 23606 label=_BARRIERS_SOMETHING
+B 16384,7240,16*38,8*826,6,1*2,8
 b 23624 Port 254 shadow
 S 23624,1,1:n
 B 23625,21,8*2,5
@@ -116,6 +117,9 @@ D 24935 Used by the routines at #R24989, #R25034 and #R25643.
 c 24989 Routine at 24989
 D 24989 Used by the routine at #R24703.
 N 25011 This entry point is used by the routine at #R25034.
+C 25011,3 Print string which follows this instruction
+B 25014,2
+T 25016,6
 s 25033 Temporary store for the counter of lives remaining to draw
 @ 25033 label=_DRAW_LIVES_REMAINING_COUNTER
 S 25033,1,1
@@ -157,13 +161,8 @@ c 25160 Game over
 D 25160 By the time it gets here the burbler has beeped to indicate the playe has been hit.
 R 25160 Used by the routine at #R24703.
 @ 25160 label=game_over
-C 25160,3 It doesn't come back from this, the return address is popped and JP (HL) happens
-b 25163 Data follows, I think
-C 25163,1
-N 25164 This entry point is used by the routine at #R25105.
-C 25164,3
-N 25167 This entry point is used by the routine at #R25105.
-C 25167,31
+C 25160,3 Print string which follows this instruction
+T 25163,35
 N 25198 Siren for game over
 C 25198,2
 C 25200,3 Sound burbler
@@ -651,10 +650,10 @@ C 31341,3 Clear one character row (32 chars)
 C 31347,3 Clear one character row (32 chars)
 C 31350,4 Flag need to redraw barriers next screen
 C 31354,3 Sound burbler
-B 31357,16
-C 31370
+B 31357,13,8,5
+N 31370 Sound burbler return point
 b 31371 Data block at 31371
-B 31371,48,8
+B 31371,48,2,8*5,6
 t 31419 Message at 31419
 T 31419,4,4
 s 31423 Unused
@@ -666,11 +665,17 @@ S 31428,1,1
 t 31429 Message at 31429
 T 31429,4,4
 s 31433 Unused
-S 31433,3,3
+S 31433,1,1
+s 31434
+S 31434,1,1
+s 31435
+S 31435,1,1
 c 31436 Called at new screen of invaders
 D 31436 Used by the routine at #R24703.
-@ 31436 label=new_screen_of_invaders
+@ 31436 label=draw_barriers
 C 31436,5 This has to be zero
+C 31451,2 3 barriers?
+C 31468,3 Draw a barrier
 b 31509 Data block at 31509
 B 31509,18,8*2,2
 c 31527 Routine at 31527
@@ -838,8 +843,13 @@ R 32254 I:B ypos char
 R 32254 O:DE Screen address
 @ 32254 label=cxy2saddr
 C 32254,20 No idea how this is working. asm_zx_cxy2saddr in z88dk is more efficient
-c 32275 Routine at 32275
+c 32275 Print UDG at HL to screen at BC
+D 32275 Plots 8 scan bytes in the character cell at C,B from the UDG at HL. HL can point to the char set in ROM.
 D 32275 Used by the routines at #R24935 and #R32307.
+R 32275 I:C char xpos
+R 32275 I:B char ypos
+R 32275 I:HL UDG data, 8 consequtive bytes
+@ 32275 label=print_udg
 C 32275,3 cxy2saddr: DE = screen address of char C,B
 c 32287 Clear screen pixel data
 D 32287 Zeroes 6144 bytes starting at 0x4000
@@ -849,14 +859,35 @@ C 32290,2 Run this loop 24 times
 C 32292,1 Zero
 C 32294,1 Load zero into screen location
 C 32296,3 Clear 256 bytes 24 times
-c 32302 Routine at 32302
+c 32302 Print string at return address
+D 32302 String to print follows the caller CALL instruction. Return address is popped into HL, and that's used as the location of the string. It then jumps to the instruction which follows the string.
 D 32302 Used by the routines at #R24989 and #R25160.
-c 32307 Routine at 32307
+@ 32302 label=print_string_at_caller
+C 32302,1 Pick up return address, that's the data
+C 32303,3 Call the string printer routine
+C 32306,1 Now 'return' to the code at the end of the data
+c 32307 Print positioned string at HL
+D 32307 String data format is Y,X,c,c,c...
 D 32307 Used by the routine at #R32302.
-C 32307,4 (HL) into BC, incrementing HL
-N 32311 This entry point is used by the routine at #R31436.
-C 32311,4 Pick up byte at HL, return if zero
+R 32307 I:HL Address of string
+@ 32307 label=print_string_yxt_at_hl
+C 32307,3 HL points to ypos,xpos. Put those in BC, incrementing HL
+C 32310,1 Drop into #R32311
+c 32311 Print string at HL
+D 32311 This entry point is used by the routine at #R31436.
+R 32311 I:B xchar
+R 32311 I:C ychar
+R 32311 I:HL char sequence
+@ 32311 label=print_string_at_hl
+C 32311,4 Pick up byte at HL, return if zero which indicates the end of the string
 C 32317,3 HL = (A * 8) + (23606)
+C 32320,3 Draw UDG
+C 32325,1 xpos++
+C 32327,2 Edge of screen?
+C 32329,2 Back for next char
+C 32331,4 Move to start of next line
+C 32335,2 Off bottom of screen?
+C 32339,2 Wrap to top of screen
 c 32343 Attribute address finder, cx,cy to attr address
 D 32343 Find attribute address from cx,cy
 R 32343 I:B cy
