@@ -1038,7 +1038,9 @@ b24605 DEFB 5        ; Speed factor, doesn't change
  24606 DEFB 5
  24607 DEFB 5
  24608 DEFB 0
+@label=_EXTRA_LIFE_AWARDED
  24609 DEFB 0
+@label=_BARRIERS_SUPPRESSED
  24610 DEFB 0
 @label=_LIVES_REMAINING
  24611 DEFB 0        ; Number of lives player has left
@@ -1069,8 +1071,8 @@ b24615 DEFB 0,114,121,230,128
 b24654 DEFB 1        ; Speed factor
  24655 DEFB 1
  24656 DEFB 1
- 24657 DEFB 0
- 24658 DEFB 0
+ 24657 DEFB 0        ; Extra life has been awarded flag
+ 24658 DEFB 0        ; Suppress barrier drawing
  24659 DEFB 0
  24660 DEFB 3        ; Number of lives player starts with
  24661 DEFB 5
@@ -1289,11 +1291,16 @@ c24989 LD DE,(24603) ;
  25028 LD A,5        ;
  25030 JP 24935      ;
 
-; Unused
-@label=_UNKNOWN3
+; Temporary store for the counter of lives remaining to draw
+@label=_DRAW_LIVES_REMAINING_COUNTER
 s25033 DEFS 1
 
 ; Draw lives remaining on top row
+;
+; The player ship sprites are drawn and buzzed into position. This uses the
+; same code as the regular ship drawing routine, including the ship position
+; variables. So it needs to save the player xpos/ypos values, set them to top
+; row and do the work, then put them back as they were.
 ;
 ; Used by the routines at #R24703 and #R25105.
 @label=draw_lives_remaining
@@ -1301,25 +1308,26 @@ c25034 LD DE,16384   ; Select 0th row
  25037 CALL 26004    ; Clear it
  25040 LD A,(24611)  ; Pick up number of lives remaining
  25043 DEC A         ; We're going to draw one fewer than that
- 25044 JR Z,25091    ; {Zero or negative lives means ... something
+ 25044 JR Z,25091    ; {Zero lives to draw, so skip drawing on the top row
  25046 JP M,25091    ; }
- 25049 LD (25033),A  ; ???
- 25052 LD DE,(24638) ; Player ship pos, X, but why 16 bits???
- 25056 PUSH DE       ;
- 25057 XOR A         ;
- 25058 LD (24639),A  ;
- 25061 LD A,72       ;
- 25063 LD (24638),A  ; Player ship pos, X
+ 25049 LD (25033),A  ; Stash away the counter. There's no obvious reason a PUSH
+                     ; AF wouldn't work here. Shrug.
+ 25052 LD DE,(24638) ; {Current player ship pos, X and Y, stash on the stack
+ 25056 PUSH DE       ; }
+ 25057 XOR A         ; {Y=0
+ 25058 LD (24639),A  ; }
+ 25061 LD A,72       ; {X=72
+ 25063 LD (24638),A  ; }
 *25066 CALL 26965    ; Draw a player ship and move it into position
- 25069 LD A,(24638)  ; Player ship pos, X
+ 25069 LD A,(24638)  ; {Move X along one ship's width
  25072 ADD A,24      ;
- 25074 LD (24638),A  ; Player ship pos, X
- 25077 LD A,(25033)  ;
+ 25074 LD (24638),A  ; }
+ 25077 LD A,(25033)  ; {Recover the lives to draw counter and decrement it
  25080 DEC A         ;
- 25081 LD (25033),A  ;
- 25084 JR NZ,25066   ;
- 25086 POP DE        ;
- 25087 LD (24638),DE ; Player ship pos, X, but why 16 bits?
+ 25081 LD (25033),A  ; }
+ 25084 JR NZ,25066   ; Back to draw next ship
+ 25086 POP DE        ; {Restore the X,Y position which is the player's ship
+ 25087 LD (24638),DE ; }
 *25091 CALL 25011    ;
 ; This entry point is used by the routine at #R24703.
 *25094 LD HL,(24603) ;
@@ -1327,19 +1335,20 @@ c25034 LD DE,16384   ; Select 0th row
  25100 LD A,5        ;
  25102 JP 24935      ;
 
-; Routine at 25105
+; Award extra life
 ;
 ; Used by the routine at #R24703.
-c25105 LD A,(24609)                 ;
- 25108 OR A                         ;
- 25109 RET NZ                       ;
+@label=award_extra_life
+c25105 LD A,(24609)                 ; {Check if extra life has been awarded.
+ 25108 OR A                         ; You only get the one.
+ 25109 RET NZ                       ; }
  25110 LD HL,(24603)                ; {If this goes greater than 100 then an
  25113 LD BC,100                    ; extra life is awarded. It's not the score
  25116 SBC HL,BC                    ; though.
  25118 RET C                        ; }
- 25119 LD A,1                       ;
- 25121 LD (24609),A                 ;
- 25124 LD A,(24611)                 ; {Lives remaining Add extra life
+ 25119 LD A,1                       ; {Set flag, no more extra lives
+ 25121 LD (24609),A                 ; }
+ 25124 LD A,(24611)                 ; {Add extra life
  25127 INC A                        ;
  25128 LD (24611),A                 ; }
  25131 LD B,8                       ;
@@ -3237,44 +3246,37 @@ c31303 LD BC,(31109) ; Pick up cy from here
  31322 LD D,64       ; 2 full rows
  31324 JP 31290      ; Set INK colour
 
-; Routine at 31327
+; Remove barriers when the aliens get low
 ;
-; Clear 3 rows... Might be the code to remove the barriers when the aliens get
-; low
+; Clear 3 rows
 ; .
 ; Used by the routine at #R30995.
 @label=remove_barriers
-c31327 LD A,(24610)  ;
- 31330 OR A          ;
- 31331 RET Z         ;
- 31332 LD DE,20608   ;
- 31335 CALL 26004    ; Clear one character row (32 chars)
- 31338 LD DE,20640   ;
- 31341 CALL 26004    ; Clear one character row (32 chars)
- 31344 LD DE,20672   ;
- 31347 CALL 26004    ; Clear one character row (32 chars)
- 31350 XOR A         ;
- 31351 LD (24610),A  ;
- 31354 CALL 31987    ; Sound burbler
- 31357 DEFB 200,10   ; ???
- 31359 LD A,(BC)     ;
- 31360 RET Z         ;
- 31361 RET Z         ;
- 31362 LD A,(BC)     ;
- 31363 LD A,(BC)     ;
- 31364 RET Z         ;
- 31365 RET Z         ;
- 31366 LD A,(BC)     ;
- 31367 LD (250),A    ;
- 31370 RET           ;
+c31327 LD A,(24610)                     ; {If barriers are suppressed we don't
+ 31330 OR A                             ; need to clear them
+ 31331 RET Z                            ; }
+ 31332 LD DE,20608                      ;
+ 31335 CALL 26004                       ; Clear one character row (32 chars)
+ 31338 LD DE,20640                      ;
+ 31341 CALL 26004                       ; Clear one character row (32 chars)
+ 31344 LD DE,20672                      ;
+ 31347 CALL 26004                       ; Clear one character row (32 chars)
+ 31350 XOR A                            ; {Flag need to redraw barriers next
+ 31351 LD (24610),A                     ; screen}
+ 31354 CALL 31987                       ; Sound burbler
+ 31357 DEFB 200,10,10,200,200,10,10,200 ;
+ 31365 DEFB 200,10,50,250,0             ;
+; Sound burbler return point
+ 31370 RET                              ;
 
 ; Data block at 31371
-b31371 DEFB 255,255,255,255,255,255,255,255
- 31379 DEFB 3,15,31,63,127,127,255,255
- 31387 DEFB 192,240,248,252,254,254,255,255
- 31395 DEFB 252,240,224,192,128,128,0,0
- 31403 DEFB 63,15,7,3,1,1,0,0
- 31411 DEFB 255,255,255,255,255,255,0,0
+b31371 DEFB 255,255
+ 31373 DEFB 255,255,255,255,255,255,3,15
+ 31381 DEFB 31,63,127,127,255,255,192,240
+ 31389 DEFB 248,252,254,254,255,255,252,240
+ 31397 DEFB 224,192,128,128,0,0,63,15
+ 31405 DEFB 7,3,1,1,0,0,255,255
+ 31413 DEFB 255,255,255,255,0,0
 
 ; Message at 31419
 t31419 DEFM "1002"
@@ -3292,26 +3294,29 @@ s31428 DEFS 1
 t31429 DEFM "5345"
 
 ; Unused
-s31433 DEFS 3
+s31433 DEFS 1
+s31434 DEFS 1
+s31435 DEFS 1
 
-; Routine at 31436
+; Called at new screen of invaders
 ;
 ; Used by the routine at #R24703.
-c31436 LD A,(24610)  ;
+@label=draw_barriers
+c31436 LD A,(24610)  ; {This has to be zero
  31439 OR A          ;
- 31440 RET NZ        ;
+ 31440 RET NZ        ; }
  31441 LD HL,(23606) ;
  31444 PUSH HL       ;
  31445 LD HL,30987   ;
  31448 LD (23606),HL ;
- 31451 LD A,3        ;
+ 31451 LD A,3        ; 3 barriers?
  31453 LD (31434),A  ;
  31456 LD BC,5125    ;
 *31459 LD HL,31419   ;
  31462 PUSH BC       ;
  31463 LD A,3        ;
  31465 LD (31435),A  ;
-*31468 CALL 32311    ;
+*31468 CALL 32311    ; Draw a barrier
  31471 DEC C         ;
  31472 DEC C         ;
  31473 DEC C         ;
@@ -3782,18 +3787,19 @@ c32302 POP HL        ;
  32303 CALL 32307    ;
  32306 JP (HL)       ;
 
-; Routine at 32307
+; Draw a barrier
 ;
 ; Used by the routine at #R32302.
-c32307 LD C,(HL)     ;
+c32307 LD C,(HL)     ; {(HL) into BC, incrementing HL
  32308 INC HL        ;
  32309 LD B,(HL)     ;
- 32310 INC HL        ;
+ 32310 INC HL        ; }
 ; This entry point is used by the routine at #R31436.
-*32311 LD A,(HL)     ;
+@label=draw_barrier
+*32311 LD A,(HL)     ; {Pick up byte at HL, return if zero
  32312 INC HL        ;
  32313 OR A          ;
- 32314 RET Z         ;
+ 32314 RET Z         ; }
  32315 PUSH BC       ;
  32316 PUSH HL       ;
  32317 CALL 32398    ; HL = (A * 8) + (23606)

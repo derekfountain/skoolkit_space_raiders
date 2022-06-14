@@ -38,6 +38,8 @@ b 24605 Game runtime data
 @ 24605 label=_GAME_RUNTIME_DATA
 @ 24605 label=_SPEED_FACTOR
 B 24605,1,1 Speed factor, doesn't change
+@ 24609 label=_EXTRA_LIFE_AWARDED
+@ 24610 label=_BARRIERS_SUPPRESSED
 B 24606,5,1
 @ 24611 label=_LIVES_REMAINING
 B 24611,1,1 Number of lives player has left
@@ -54,7 +56,10 @@ B 24641,13,1*2,2,7,1
 b 24654 Game initialisation data
 @ 24654 label=_GAME_INIT_DATA
 B 24654,1,1 Speed factor
-B 24655,5,1
+B 24655,2,1
+B 24657,1,1 Extra life has been awarded flag
+B 24658,1,1 Suppress barrier drawing
+B 24659,1,1
 B 24660,1,1 Number of lives player starts with
 B 24661,3,1
 b 24664 Data block at 24664
@@ -111,29 +116,35 @@ D 24935 Used by the routines at #R24989, #R25034 and #R25643.
 c 24989 Routine at 24989
 D 24989 Used by the routine at #R24703.
 N 25011 This entry point is used by the routine at #R25034.
-s 25033 Unused
-@ 25033 label=_UNKNOWN3
+s 25033 Temporary store for the counter of lives remaining to draw
+@ 25033 label=_DRAW_LIVES_REMAINING_COUNTER
 S 25033,1,1
 c 25034 Draw lives remaining on top row
-D 25034 Used by the routines at #R24703 and #R25105.
+D 25034 The player ship sprites are drawn and buzzed into position. This uses the same code as the regular ship drawing routine, including the ship position variables. So it needs to save the player xpos/ypos values, set them to top row and do the work, then put them back as they were.
+R 25034 Used by the routines at #R24703 and #R25105.
 @ 25034 label=draw_lives_remaining
 C 25034,3 Select 0th row
 C 25037,3 Clear it
 C 25040,3 Pick up number of lives remaining
 C 25043,1 We're going to draw one fewer than that
-C 25044,5 Zero or negative lives means ... something
-C 25049,3 ???
-C 25052,4 Player ship pos, X, but why 16 bits???
-C 25063,3 Player ship pos, X
+C 25044,5 Zero lives to draw, so skip drawing on the top row
+C 25049,3 Stash away the counter. There's no obvious reason a PUSH AF wouldn't work here. Shrug.
+C 25052,5 Current player ship pos, X and Y, stash on the stack
+C 25057,4 Y=0
+C 25061,5 X=72
 C 25066,3 Draw a player ship and move it into position
-C 25069,3 Player ship pos, X
-C 25074,3 Player ship pos, X
-C 25087,4 Player ship pos, X, but why 16 bits?
+C 25069,8 Move X along one ship's width
+C 25077,7 Recover the lives to draw counter and decrement it
+C 25084,2 Back to draw next ship
+C 25086,5 Restore the X,Y position which is the player's ship
 N 25094 This entry point is used by the routine at #R24703.
-c 25105 Routine at 25105
+c 25105 Award extra life
 D 25105 Used by the routine at #R24703.
+@ 25105 label=award_extra_life
+C 25105,5 Check if extra life has been awarded. You only get the one.
 C 25110,9 If this goes greater than 100 then an extra life is awarded. It's not the score though.
-C 25124,7 Lives remaining Add extra life
+C 25119,5 Set flag, no more extra lives
+C 25124,7 Add extra life
 N 25133 This entry point is used by the routine at #R25155.
 C 25133,3 Pick up port 254 shadow
 C 25136,2 Don't know what this is for
@@ -141,7 +152,7 @@ C 25138,2 Null out bottom 3 bits - border black
 C 25140,3 Put it back
 C 25143,3 Sound burbler
 B 25146,9,8,1 Extra life sound
-C 25155 Sound burbler return point
+C 25155,5 Sound burbler return point
 c 25160 Game over
 D 25160 By the time it gets here the burbler has beeped to indicate the playe has been hit.
 R 25160 Used by the routine at #R24703.
@@ -324,8 +335,8 @@ c 26490 Routine at 26490
 D 26490 Used by the routine at #R26038.
 N 26503 This entry point is used by the routine at #R26541.
 C 26528,3 Sound burbler
-B 26531,7 Hit alien bullet sound
-C 26538 Sound burbler return point
+B 26531,7,7 Hit alien bullet sound
+C 26538,3 Sound burbler return point
 c 26541 Routine at 26541
 D 26541 Used by the routine at #R26490.
 c 26566 Routine at 26566
@@ -419,7 +430,7 @@ B 26871,12,3,8,1
 c 26883 Routine at 26883
 D 26883 Used by the routine at #R26566.
 C 26883,3 Sound burbler
-B 26886,7 Player fire sound
+B 26886,7,7 Player fire sound
 N 26893 Sound burbler return point
 c 26916 Routine at 26916
 D 26916 Used by the routine at #R26566.
@@ -630,15 +641,18 @@ C 31320,1 Pick up INK colour from (HL)
 C 31321,1 E is INK colour
 C 31322,2 2 full rows
 C 31324,3 Set INK colour
-c 31327 Routine at 31327
-D 31327 Clear 3 rows... Might be the code to remove the barriers when the aliens get low
+c 31327 Remove barriers when the aliens get low
+D 31327 Clear 3 rows
 D 31327 Used by the routine at #R30995.
 @ 31327 label=remove_barriers
+C 31327,5 If barriers are suppressed we don't need to clear them
 C 31335,3 Clear one character row (32 chars)
 C 31341,3 Clear one character row (32 chars)
 C 31347,3 Clear one character row (32 chars)
+C 31350,4 Flag need to redraw barriers next screen
 C 31354,3 Sound burbler
-B 31357,2,2 ???
+B 31357,16
+C 31370
 b 31371 Data block at 31371
 B 31371,48,8
 t 31419 Message at 31419
@@ -653,8 +667,10 @@ t 31429 Message at 31429
 T 31429,4,4
 s 31433 Unused
 S 31433,3,3
-c 31436 Routine at 31436
+c 31436 Called at new screen of invaders
 D 31436 Used by the routine at #R24703.
+@ 31436 label=new_screen_of_invaders
+C 31436,5 This has to be zero
 b 31509 Data block at 31509
 B 31509,18,8*2,2
 c 31527 Routine at 31527
@@ -837,7 +853,9 @@ c 32302 Routine at 32302
 D 32302 Used by the routines at #R24989 and #R25160.
 c 32307 Routine at 32307
 D 32307 Used by the routine at #R32302.
+C 32307,4 (HL) into BC, incrementing HL
 N 32311 This entry point is used by the routine at #R31436.
+C 32311,4 Pick up byte at HL, return if zero
 C 32317,3 HL = (A * 8) + (23606)
 c 32343 Attribute address finder, cx,cy to attr address
 D 32343 Find attribute address from cx,cy
