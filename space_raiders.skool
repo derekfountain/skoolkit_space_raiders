@@ -3245,6 +3245,8 @@ c31327 LD A,(24610)                     ; {If barriers are suppressed we don't
 ; Sound burbler return point
  31370 RET                              ;
 
+; UDGs which make up the barriers.
+;
 ; Data block at 31371
 b31371 DEFB 255,255
  31373 DEFB 255,255,255,255,255,255,3,15
@@ -3254,23 +3256,23 @@ b31371 DEFB 255,255
  31405 DEFB 7,3,1,1,0,0,255,255
  31413 DEFB 255,255,255,255,0,0
 
-; Message at 31419
-t31419 DEFM "1002"
+; Barrier top row string
+;
+; 4 UDGs which render, in the internal "font", as top row of a barrier
+@label=_BARRIER_TOP
+t31419 DEFM "1002",0
 
-; Unused
-s31423 DEFS 1
+; Barrier middle row string
+;
+; 4 UDGs which render, in the internal "font", as middle row of a barrier
+@label=_BARRIER_MIDDLE
+t31424 DEFM "0000",0
 
-; Message at 31424
-t31424 DEFM "0000"
-
-; Unused
-s31428 DEFS 1
-
-; Message at 31429
-t31429 DEFM "5345"
-
-; Unused
-s31433 DEFS 1
+; Barrier bottom row string
+;
+; 4 UDGs which render, in the internal "font", as bottom row of a barrier
+@label=_BARRIER_BOTTOM
+t31429 DEFM "5345",0
 
 @label=_DRAW_BARRIER_COUNT
 s31434 DEFS 1
@@ -3291,7 +3293,10 @@ c31436 LD A,(24610)  ; {Barriers suppressed flag, this has to be zero
  31440 RET NZ        ; }
  31441 LD HL,(23606) ; {Stash default font address on stack
  31444 PUSH HL       ; }
- 31445 LD HL,30987   ; {Switch to the UDGs here? It's code. ???
+ 31445 LD HL,30987   ; {Switch to the UDGs here. In theory this is the
+                     ;  start of the "font", but we only use UDGs starting at
+                     ; char '0'. Char '0' is 48 decimal, 48*8 is 384,
+                     ; 30987+384=#R31371
  31448 LD (23606),HL ; }
  31451 LD A,3        ; {We need to draw 3 barriers
  31453 LD (31434),A  ;}
