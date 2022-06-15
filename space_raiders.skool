@@ -868,9 +868,13 @@ b16384 DEFB 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
  23584 DEFB 0,0,0,0,0,0,0,0
  23592 DEFB 0,0,0,0,0,0,0,0
  23600 DEFB 0,0,0,0,0,0
-@label=_BARRIERS_SOMETHING
+; Default font is in the ROM. This points to $3C00, whereas the
+; ROM's char set is at $3D00. The ROM starts with space (char 32)
+; so this points 32*8 before the actual char data.
+@label=_CURRENT_FONT
  23606 DEFB 0
  23607 DEFB 60
+;
  23608 DEFB 64,0,255,205,0,177,95,0
  23616 DEFB 0,0,10,0,255,10,0,7
 
@@ -1043,6 +1047,8 @@ b24605 DEFB 5        ; Speed factor, doesn't change
  24608 DEFB 0
 @label=_EXTRA_LIFE_AWARDED
  24609 DEFB 0
+; Barriers suppressed flag. This starts off zero so the barriers get
+; drawn, but then goes 1 so they don't get drawn again each new screen.
 @label=_BARRIERS_SUPPRESSED
  24610 DEFB 0
 @label=_LIVES_REMAINING
@@ -3266,52 +3272,56 @@ t31429 DEFM "5345"
 ; Unused
 s31433 DEFS 1
 
-; Unused
+@label=_DRAW_BARRIER_COUNT
 s31434 DEFS 1
 
-; Unused
+@label=_BARRIER_ROWS_TO_DRAW
 s31435 DEFS 1
 
-; Called at new screen of invaders
+; Draw barriers
 ;
+; The barriers are built from UDGs. Each barrier is 3 rows of
+; chars high, and each row is printed as a string using a special
+; "font".
+;.
 ; Used by the routine at #R24703.
 @label=draw_barriers
-c31436 LD A,(24610)  ; {This has to be zero
- 31439 OR A          ;
+c31436 LD A,(24610)  ; {Barriers suppressed flag, this has to be zero
+ 31439 OR A          ;  otherwise the barriers aren't drawn
  31440 RET NZ        ; }
- 31441 LD HL,(23606) ;
- 31444 PUSH HL       ;
- 31445 LD HL,30987   ;
- 31448 LD (23606),HL ;
- 31451 LD A,3        ; 3 barriers?
- 31453 LD (31434),A  ;
- 31456 LD BC,5125    ;
-*31459 LD HL,31419   ;
+ 31441 LD HL,(23606) ; {Stash default font address on stack
+ 31444 PUSH HL       ; }
+ 31445 LD HL,30987   ; {Switch to the UDGs here? It's code. ???
+ 31448 LD (23606),HL ; }
+ 31451 LD A,3        ; {We need to draw 3 barriers
+ 31453 LD (31434),A  ;}
+ 31456 LD BC,5125    ; Y=20, X=05
+*31459 LD HL,31419   ; Sequence of UDGs which display a row of the barrier 
  31462 PUSH BC       ;
- 31463 LD A,3        ;
- 31465 LD (31435),A  ;
-*31468 CALL 32311    ; Draw a barrier
- 31471 DEC C         ;
+ 31463 LD A,3        ; {The graphic is 3 rows per barrier
+ 31465 LD (31435),A  ;}
+*31468 CALL 32311    ; Draw a barrier row using the UDG printer code
+ 31471 DEC C         ; {X=X-4
  31472 DEC C         ;
  31473 DEC C         ;
- 31474 DEC C         ;
- 31475 INC B         ;
- 31476 LD A,(31435)  ;
+ 31474 DEC C         ; }
+ 31475 INC B         ; Y=Y+1
+ 31476 LD A,(31435)  ; { Barrier row drawn
  31479 DEC A         ;
- 31480 LD (31435),A  ;
- 31483 JR NZ,31468   ;
+ 31480 LD (31435),A  ;}
+ 31483 JR NZ,31468   ; Back for next row
  31485 POP BC        ;
- 31486 LD A,C        ;
- 31487 ADD A,9       ;
- 31489 LD C,A        ;
- 31490 LD A,(31434)  ;
+ 31486 LD A,C        ; {Move X along 9 chars
+ 31487 ADD A,9       ;  ready for next barrier
+ 31489 LD C,A        ; }
+ 31490 LD A,(31434)  ; {One more barrier has been drawn
  31493 DEC A         ;
- 31494 LD (31434),A  ;
- 31497 JR NZ,31459   ;
- 31499 POP HL        ;
- 31500 LD (23606),HL ;
- 31503 LD A,1        ;
- 31505 LD (24610),A  ;
+ 31494 LD (31434),A  ; }
+ 31497 JR NZ,31459   ; Back to do the next one
+ 31499 POP HL        ; {Recover default font address
+ 31500 LD (23606),HL ; and put it back}
+ 31503 LD A,1        ; {Barriers are drawn, flag not to redraw them.
+ 31505 LD (24610),A  ; }
  31508 RET           ;
 
 ; Data block at 31509
@@ -3322,9 +3332,9 @@ b31509 DEFB 0,0,254,0,255,0,1,0
 ; Routine at 31527
 ;
 ; Used by the routines at #R25853 and #R26541.
-c31527 LD A,(24610)  ;
+c31527 LD A,(24610)  ; { Return immediately if the barriers are suppressed
  31530 OR A          ;
- 31531 RET Z         ;
+ 31531 RET Z         ; }
  31532 LD (31509),BC ;
  31536 LD A,B        ;
  31537 CP 162        ;
@@ -3736,15 +3746,15 @@ c32254 LD D,B        ; {No idea how this is working. asm_zx_cxy2saddr in z88dk
 ;
 ; I:C char xpos
 ; I:B char ypos
-; I:HL UDG data, 8 consequtive bytes
+; I:HL UDG data, 8 consecutive bytes
 @label=print_udg
 c32275 CALL 32254    ; cxy2saddr: DE = screen address of char C,B
- 32278 LD B,8        ;
-*32280 LD A,(HL)     ;
- 32281 INC HL        ;
- 32282 LD (DE),A     ;
- 32283 INC D         ;
- 32284 DJNZ 32280    ;
+ 32278 LD B,8        ; 8 scans, top to bottom
+*32280 LD A,(HL)     ; Pick up data byte
+ 32281 INC HL        ; Move to next
+ 32282 LD (DE),A     ; Load into screen
+ 32283 INC D         ; Move down a scan
+ 32284 DJNZ 32280    ; Back for next
  32286 RET           ;
 
 ; Clear screen pixel data
@@ -3801,21 +3811,21 @@ c32311 LD A,(HL)     ; {Pick up byte at HL, return if zero which indicates the
  32314 RET Z         ; }
  32315 PUSH BC       ;
  32316 PUSH HL       ;
- 32317 CALL 32398    ; HL = (A * 8) + (23606)
+ 32317 CALL 32398    ; HL = (A * 8) + (_CURRENT_FONT)
  32320 CALL 32275    ; Draw UDG
  32323 POP HL        ;
  32324 POP BC        ;
  32325 INC C         ; xpos++
  32326 LD A,C        ;
  32327 CP 32         ; Edge of screen?
- 32329 JR NZ,32311   ; Back for next char
+ 32329 JR NZ,32311   ; No, back for next char
  32331 LD C,0        ; {Move to start of next line
  32333 INC B         ;
  32334 LD A,B        ; }
  32335 CP 24         ; Off bottom of screen?
- 32337 JR NZ,32311   ;
+ 32337 JR NZ,32311   ; No, back for next char
  32339 LD B,0        ; Wrap to top of screen
- 32341 JR 32311      ;
+ 32341 JR 32311      ; Now back to next char
 
 ; Attribute address finder, cx,cy to attr address
 ;
@@ -3893,16 +3903,25 @@ c32374 PUSH HL       ; Save regs
  32396 POP HL        ;
  32397 RET           ;
 
-; Multiply A by 8, then add (23606)
+; Find character
 ;
+; Given a character code in A, this finds the location of that char's
+; bytes in the font pointed to by 23606.
+;.
+; The code multiplies A by 8 and adds (23606)
+;.
 ; Used by the routine at #R32307.
+;
+; I:A Char code ('A'=65, etc);
+; O:HL Address of top scan of data
+@label=find_char
 c32398 PUSH BC       ;
  32399 LD L,A        ; {A into HL
  32400 LD H,0        ; }
  32402 ADD HL,HL     ; x2
  32403 ADD HL,HL     ; x4
  32404 ADD HL,HL     ; x8
- 32405 LD BC,(23606) ; {Add on the value found here
+ 32405 LD BC,(23606) ; {Add on start of font address
  32409 ADD HL,BC     ; }
  32410 POP BC        ;
  32411 RET           ; Result in HL
