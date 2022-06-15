@@ -1067,10 +1067,15 @@ b24615 DEFB 0,114,121,230,128
  24639 DEFB 0                             ; Player ship pos, Y
 @label=_YPOS_ADJUST
  24640 DEFB 0                             ; Player ship adjustment, -1, 0 or +1
+@label=_PLAYER_BULLET_IN_FLIGHT
  24641 DEFB 0
+@label=_PLAYER_BULLET_XPOS
  24642 DEFB 0
- 24643 DEFB 0,115
+@label=_PLAYER_BULLET_YPOS
+ 24643 DEFB 0
+ 24644 DEFB 115
  24645 DEFB 25,235,201,205,251,114,58
+@label=_FIRE_PRESSED
  24652 DEFB 0
  24653 DEFB 0
 
@@ -1203,9 +1208,9 @@ c24868 LD A,(24653)  ;
  24884 JR NZ,24892   ;
  24886 LD A,(24606)  ;
  24889 CALL 24908    ;
-*24892 LD A,(24641)  ;
+*24892 LD A,(24641)  ; {Return if a bullet is in flight
  24895 OR A          ;
- 24896 JP NZ,24737   ;
+ 24896 JP NZ,24737   ;}
  24899 LD A,(24607)  ;
  24902 CALL 24908    ;
  24905 JP 24737      ;
@@ -1501,9 +1506,9 @@ c25442 LD A,(24653)  ;
  25549 CALL 31960    ; Clear sprite
  25552 XOR A         ; Mode set
  25553 CALL 31960    ; Draw sprite
- 25556 LD A,(24641)  ;
+ 25556 LD A,(24641)  ; {Return if no bullet in flight
  25559 OR A          ;
- 25560 RET Z         ;
+ 25560 RET Z         ;}
  25561 LD IX,24642   ;
  25565 LD A,(IX+1)   ;
  25568 CP 16         ;
@@ -1568,10 +1573,12 @@ c25643 LD A,(32058)  ; ???
  25681 LD A,2        ;
  25683 JP 24935      ;
 
-; Add A to HL
-;
+; Add A to HL (1)
+;.
+; There are two copies of this code.
+;.
 ; Used by the routine at #R25643.
-@label=add_a_to_hl
+@label=add_a_to_hl_1
 c25686 ADD A,L       ;
  25687 LD L,A        ;
  25688 RET NC        ;
@@ -1782,9 +1789,9 @@ c26020 LD A,(IX+1)   ;
 ; Routine at 26038
 ;
 ; Used by the routine at #R24703.
-c26038 LD A,(24641)  ;
+c26038 LD A,(24641)  ; {Return if no bullet in flight
  26041 OR A          ;
- 26042 RET Z         ;
+ 26042 RET Z         ;}
  26043 CALL 26049    ;
  26046 JP 26490      ;
 
@@ -2000,9 +2007,12 @@ c26464 LD A,(26099)  ;
  26480 LD (24603),HL ;
  26483 RET           ;
 
-; Routine at 26484
+; Add A to HL (2)
 ;
+; There are two copies of this code.
+;.
 ; Used by the routines at #R26375 and #R26464.
+@label=add_a_to_hl_2
 c26484 ADD A,L       ;
  26485 LD L,A        ;
  26486 RET NC        ;
@@ -2051,26 +2061,25 @@ c26541 INC IX        ;
  26562 RET Z         ;
  26563 JP 26947      ;
 
-; Routine at 26566
+; Fire player bullet
 ;
 ; Used by the routine at #R24703.
+@label=fire_player_bullet
 c26566 CALL 26587    ; Read keyboard
  26569 CALL 26675    ;
- 26572 LD A,(24641)  ;
+ 26572 LD A,(24641)  ; {Return if bullet in flight
  26575 OR A          ;
- 26576 JP NZ,26916   ;
+ 26576 JP NZ,26916   ;}
  26579 LD A,(24652)  ; {Has fire been pressed? Return if not
  26582 OR A          ;
  26583 RET Z         ; }
- 26584 JP 26883      ;
+ 26584 JP 26883      ; Handle firing of bullet
 
 ; Keypress detection
 ;
 ; Used by the routines at #R25160 and #R26566
 ; .
-; ???? Still not worked out how B being held is propogated ????
-;
-; O:24652 (fire pressed flag) set 1 if fire has been pressed
+; Updates values at #R24640, #R24652 and #R26721
 @label=read_keyboard
 c26587 LD BC,65278   ; 0xFEFE - matrix SHIFT, Z, X, C, V
  26590 IN E,(C)      ; Read port into E
@@ -2130,35 +2139,48 @@ c26587 LD BC,65278   ; 0xFEFE - matrix SHIFT, Z, X, C, V
  26671 LD (26721),A  ; }
  26674 RET           ;
 
-; Called from ship drawing?
+; Redraw player ship
 ;
+; If the player's ship needs to move, erase and redraw it.
+; The ypos adjustment comes from the keypress routine, and
+; will be -1 to move a pixel left, or 1 to move a pixel
+; right.
+;.
 ; Used by the routines at #R26566 and #R26965.
+@label=redraw_player_ship
 c26675 LD A,(24640)  ; Player ship position adjustment, -1, 0 or 1
  26678 OR A          ; {Ship doesn't need to move, just return
  26679 RET Z         ; }
- 26680 JP P,26684    ; {Set A to 0 if there's an odd number of bits. I think
- 26683 XOR A         ; this is a sanity check?}
+ 26680 JP P,26684    ; {1 has an odd number of bits. -1, even.
+ 26683 XOR A         ; A=0 if moving right, A=1 if moving left.}
 *26684 LD IX,24638   ; IX points to player ship pos, X
- 26688 CALL 26712    ; Set HL to 26722 if A != 0, or 26796 if A == 0
+ 26688 CALL 26712    ; Select sprite data based on A
  26691 LD A,1        ; Mode clear
- 26693 CALL 31960    ; Clear sprite
+ 26693 CALL 31960    ; Clear sprite side pixels
  26696 XOR A         ; Mode set
- 26697 CALL 31960    ; Draw sprite
- 26700 LD A,(24640)  ;
- 26703 LD B,A        ;
- 26704 LD A,(24638)  ; Player ship pos, X
- 26707 ADD A,B       ;
- 26708 LD (24638),A  ; Player ship pos, X
+ 26697 CALL 31960    ; Draw sprite side pixels
+ 26700 LD A,(24640)  ; {Pick up adjustment again and add it
+ 26703 LD B,A        ; to the current xpos value. Adding -1 or
+ 26704 LD A,(24638)  ; 1 makes it the correct position value.
+ 26707 ADD A,B       ; Then write it back out.
+ 26708 LD (24638),A  ; }
  26711 RET           ;
 
-; Set HL to 26722 or 26796
+; Select player ship sprite data
 ;
-; If A isn't zero, return 26722 in HL If A is zero, return 26796 in HL.
+; Set HL to #R26722 if A is 1, or #R26796 is A is 0.
+;.
+; A is used to indicate whether the ship needs to move left or right.
+; Choose the correct sprite data ready for the redraw.
+;
+; I:A 0 if player moving right, 1 if player moving left
+; O:HL Sprite data address
+@label=select_player_ship_sprite
 c26712 LD HL,26722   ;
  26715 OR A          ;
- 26716 RET NZ        ;
+ 26716 RET NZ        ; Return if A=1, hence left move
  26717 LD HL,26796   ;
- 26720 RET           ;
+ 26720 RET           ; Return if A=0, hence right move
 
 ; Keypress routine's fire-released flag
 ;
@@ -2170,62 +2192,67 @@ c26712 LD HL,26722   ;
 @label=_FIRE_RELEASED
 b26721 DEFB 0        ; Fire released flag, local to keypress routine
 
+; Player ship sprite data
+;
 ; Player ship sprite data. x,y pairs, each giving a single pixel Pixels to
-; clear as sprite moves left or right.
-@label=_PLAYER_SHIP_CLEAR1
+; clear as sprite moves left or right. These define an edge of the sprite
+; rather than the whole sprite itself. The edge is removed by one set of data
+; and drawn in by the other set.
+@label=_PLAYER_SHIP_LEFT_CLEAR
 b26722 DEFB 10,0,9,1,1,2,9
  26729 DEFB 2,19,2,1,3,9,3,19
  26737 DEFB 3,1,4,6,4,18,4,1
  26745 DEFB 5,1,6,6,6,18,6,1
  26753 DEFB 7,7,7,19,7,255
-; Other direction
-@label=_PLAYER_SHIP_CLEAR2
+;
+@label=_PLAYER_SHIP_LEFT_DRAW
  26759 DEFB 11,0
  26761 DEFB 12,1,2,2,12,2,20,2
  26769 DEFB 2,3,12,3,20,3,3,4
  26777 DEFB 15,4,20,4,20,5,3,6
  26785 DEFB 15,6,20,6,2,7,14,7
  26793 DEFB 20,7,255
-
-; Same as above, but flipped??? Not sure
-@label=_PLAYER_SHIP_CLEAR3
-b26796 DEFB 10,0,11,1,1
+;
+@label=_PLAYER_SHIP_RIGHT_CLEAR
+ 26796 DEFB 10,0,11,1,1
  26801 DEFB 2,11,2,19,2,1,3,11
  26809 DEFB 3,19,3,2,4,14,4,19
  26817 DEFB 4,19,5,2,6,14,6,19
  26825 DEFB 6,1,7,13,7,19,7,255
-; Other direction
-@label=_PLAYER_SHIP_CLEAR4
+;
+@label=_PLAYER_SHIP_RIGHT_DRAW
  26833 DEFB 9,0,8,1,0,2,8,2
  26841 DEFB 18,2,0,3,8,3,18,3
  26849 DEFB 0,4,5,4,17,4,0,5
  26857 DEFB 0,6,5,6,17,6,0,7
  26865 DEFB 6,7,18,7,255
- 26870 DEFB 0
 ; This looks like a vertical line, might be a bullet?
 @label=_BULLET
+ 26870 DEFB 0
  26871 DEFB 0,0,1
  26874 DEFB 0,2,0,3,0,4,0,5
  26882 DEFB 255
 
-; Routine at 26883
+; Fire pressed
 ;
 ; Used by the routine at #R26566.
+@label=fire_pressed
 c26883 CALL 31987                ; Sound burbler
  26886 DEFB 20,50,10,100,5,200,0 ; Player fire sound
 ; Sound burbler return point
- 26893 LD A,1                    ;
- 26895 LD (24641),A              ;
- 26898 LD A,(24638)              ;
- 26901 LD IX,24642               ;
- 26905 ADD A,10                  ;
- 26907 LD (IX+0),A               ;
- 26910 LD (IX+1),176             ;
- 26914 JR 26940                  ;
+ 26893 LD A,1                    ; { Mark bullet in flight
+ 26895 LD (24641),A              ;}
+ 26898 LD A,(24638)              ; {Player xpos plus half the
+ 26901 LD IX,24642               ; width of the player ship
+ 26905 ADD A,10                  ; is the bullet's xpos
+ 26907 LD (IX+0),A               ;}
+ 26910 LD (IX+1),176             ; Bullet ypos starts down here
+ 26914 JR 26940                  ; Jump to draw bullet
 
 ; Routine at 26916
 ;
 ; Used by the routine at #R26566.
+@label=draw_player_bullet
 c26916 LD IX,24642   ;
  26920 LD HL,26870   ;
  26923 LD A,1        ; Mode clear
@@ -2243,16 +2270,17 @@ c26916 LD IX,24642   ;
 ; Routine at 26947
 ;
 ; Used by the routines at #R26225, #R26538 and #R26541.
+@label=clear_player_bullet
 c26947 LD IX,24642   ;
  26951 LD HL,26870   ;
  26954 LD A,1        ; Mode clear
  26956 CALL 31960    ; Clear sprite
 ; This entry point is used by the routine at #R26916.
-*26959 XOR A         ;
- 26960 LD (24641),A  ;
+*26959 XOR A         ; {Bullet no longer in flight
+ 26960 LD (24641),A  ;}
  26963 RET           ;
 
-; Unused
+; ???
 s26964 DEFS 1
 
 ; Draw player ship and scroll it into position.
@@ -2265,7 +2293,7 @@ c26965 PUSH IX       ; Set by one of the subroutines, ???
  26968 LD A,255      ; {Set up adjustment of -1, which means 1 pixel left
  26970 LD (24640),A  ; }
  26973 LD A,(24638)  ; Player ship pos, X
- 26976 LD (26964),A  ;
+ 26976 LD (26964),A  ; ???
  26979 ADD A,40      ;
  26981 LD (24638),A  ; Player ship pos, X
 *26984 CALL 26675    ;

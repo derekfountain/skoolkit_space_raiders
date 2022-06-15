@@ -2,8 +2,10 @@
 @ 16384 org
 b 16384 Data block at 16384
 D 16384 #SCR(loading)
-@ 23606 label=_BARRIERS_SOMETHING
-B 16384,7240,16*38,8*826,6,1*2,8
+B 16384,7222,16*38,8*826,6
+N 23606 Default font is in the ROM. This points to $3C00, whereas the ROM's char set is at $3D00. The ROM starts with space (char 32) so this points 32*8 before the actual char data.
+@ 23606 label=_CURRENT_FONT
+B 23606,18,1*2,8
 b 23624 Port 254 shadow
 S 23624,1,1:n
 B 23625,21,8*2,5
@@ -40,8 +42,10 @@ b 24605 Game runtime data
 @ 24605 label=_SPEED_FACTOR
 B 24605,1,1 Speed factor, doesn't change
 @ 24609 label=_EXTRA_LIFE_AWARDED
+B 24606,4,1
+N 24610 Barriers suppressed flag. This starts off zero so the barriers get drawn, but then goes 1 so they don't get drawn again each new screen.
 @ 24610 label=_BARRIERS_SUPPRESSED
-B 24606,5,1
+B 24610,1,1
 @ 24611 label=_LIVES_REMAINING
 B 24611,1,1 Number of lives player has left
 B 24612,3,1
@@ -118,8 +122,8 @@ c 24989 Routine at 24989
 D 24989 Used by the routine at #R24703.
 N 25011 This entry point is used by the routine at #R25034.
 C 25011,3 Print string which follows this instruction
-B 25014,2
-T 25016,6
+B 25014,2,2
+T 25016,6,5:n1
 s 25033 Temporary store for the counter of lives remaining to draw
 @ 25033 label=_DRAW_LIVES_REMAINING_COUNTER
 S 25033,1,1
@@ -162,9 +166,8 @@ D 25160 By the time it gets here the burbler has beeped to indicate the playe ha
 R 25160 Used by the routine at #R24703.
 @ 25160 label=game_over
 C 25160,3 Print string which follows this instruction
-T 25163,35
-N 25198 Siren for game over
-C 25198,2
+T 25163,35,n2:32:n1
+N 25198 Return here, play siren for game over
 C 25200,3 Sound burbler
 B 25203,11,8,3 Data for game over siren
 N 25214 Sound burbler return point
@@ -652,34 +655,58 @@ C 31350,4 Flag need to redraw barriers next screen
 C 31354,3 Sound burbler
 B 31357,13,8,5
 N 31370 Sound burbler return point
-b 31371 Data block at 31371
-B 31371,48,2,8*5,6
-t 31419 Message at 31419
-T 31419,4,4
-s 31423 Unused
-S 31423,1,1
-t 31424 Message at 31424
-T 31424,4,4
-s 31428 Unused
-S 31428,1,1
-t 31429 Message at 31429
-T 31429,4,4
-s 31433 Unused
-S 31433,1,1
-s 31434
+b 31371 UDGs which make up the barriers.
+D 31371 Data block at 31371
+B 31371,8,8 #HTML[#UDG31371,8(0)]
+B 31379,8,8 #HTML[#UDG31379,8(1)]
+B 31387,8,8 #HTML[#UDG31387,8(2)]
+B 31395,8,8 #HTML[#UDG31395,8(3)]
+B 31403,8,8 #HTML[#UDG31403,8(4)]
+B 31411,8,8 #HTML[#UDG31411,8(5)]
+t 31419 Barrier top row string
+D 31419 4 UDGs which render, in the internal "font", as top row of a barrier
+@ 31419 label=_BARRIER_TOP
+T 31419,5,4:n1
+t 31424 Barrier middle row string
+D 31424 4 UDGs which render, in the internal "font", as middle row of a barrier
+@ 31424 label=_BARRIER_MIDDLE
+T 31424,5,4:n1
+t 31429 Barrier bottom row string
+D 31429 4 UDGs which render, in the internal "font", as bottom row of a barrier
+@ 31429 label=_BARRIER_BOTTOM
+T 31429,5,4:n1
+s 31434 Unused
+@ 31434 label=_DRAW_BARRIER_COUNT
 S 31434,1,1
-s 31435
+s 31435 Unused
+@ 31435 label=_BARRIER_ROWS_TO_DRAW
 S 31435,1,1
-c 31436 Called at new screen of invaders
+c 31436 Draw barriers
+D 31436 The barriers are built from UDGs. Each barrier is 3 rows of chars high, and each row is printed as a string using a special "font".
 D 31436 Used by the routine at #R24703.
 @ 31436 label=draw_barriers
-C 31436,5 This has to be zero
-C 31451,2 3 barriers?
-C 31468,3 Draw a barrier
+C 31436,5 Barriers suppressed flag, this has to be zero otherwise the barriers aren't drawn
+C 31441,4 Stash default font address on stack
+C 31445,6 Switch to the UDGs here. In theory this is the  start of the "font", but we only use UDGs starting at char '0'. Char '0' is 48 decimal, 48*8 is 384, 30987+384=#R31371
+C 31451,5 We need to draw 3 barriers
+C 31456,3 Y=20, X=05
+C 31459,3 Sequence of UDGs which display a row of the barrier
+C 31463,5 The graphic is 3 rows per barrier
+C 31468,3 Draw a barrier row using the UDG printer code
+C 31471,4 X=X-4
+C 31475,1 Y=Y+1
+C 31476,7 Barrier row drawn
+C 31483,2 Back for next row
+C 31486,4 Move X along 9 chars ready for next barrier
+C 31490,7 One more barrier has been drawn
+C 31497,2 Back to do the next one
+C 31499,4 Recover default font address and put it back
+C 31503,5 Barriers are drawn, flag not to redraw them.
 b 31509 Data block at 31509
 B 31509,18,8*2,2
 c 31527 Routine at 31527
 D 31527 Used by the routines at #R25853 and #R26541.
+C 31527,5 Return immediately if the barriers are suppressed
 C 31621,3 Sound burbler
 B 31624,2,2 ???
 c 31634 Set pixel
@@ -848,9 +875,15 @@ D 32275 Plots 8 scan bytes in the character cell at C,B from the UDG at HL. HL c
 D 32275 Used by the routines at #R24935 and #R32307.
 R 32275 I:C char xpos
 R 32275 I:B char ypos
-R 32275 I:HL UDG data, 8 consequtive bytes
+R 32275 I:HL UDG data, 8 consecutive bytes
 @ 32275 label=print_udg
 C 32275,3 cxy2saddr: DE = screen address of char C,B
+C 32278,2 8 scans, top to bottom
+C 32280,1 Pick up data byte
+C 32281,1 Move to next
+C 32282,1 Load into screen
+C 32283,1 Move down a scan
+C 32284,2 Back for next
 c 32287 Clear screen pixel data
 D 32287 Zeroes 6144 bytes starting at 0x4000
 @ 32287 label=clear_pixels
@@ -880,14 +913,16 @@ R 32311 I:C ychar
 R 32311 I:HL char sequence
 @ 32311 label=print_string_at_hl
 C 32311,4 Pick up byte at HL, return if zero which indicates the end of the string
-C 32317,3 HL = (A * 8) + (23606)
+C 32317,3 HL = (A * 8) + (_CURRENT_FONT)
 C 32320,3 Draw UDG
 C 32325,1 xpos++
 C 32327,2 Edge of screen?
-C 32329,2 Back for next char
+C 32329,2 No, back for next char
 C 32331,4 Move to start of next line
 C 32335,2 Off bottom of screen?
+C 32337,2 No, back for next char
 C 32339,2 Wrap to top of screen
+C 32341,2 Now back to next char
 c 32343 Attribute address finder, cx,cy to attr address
 D 32343 Find attribute address from cx,cy
 R 32343 I:B cy
@@ -931,13 +966,18 @@ C 32385,1 Select the entry from input value into HL
 C 32386,3 2 byte result goes here
 C 32389,6 Copy 2 bytes from jump table entry to result
 C 32395,1 Restore regs
-c 32398 Multiply A by 8, then add (23606)
+c 32398 Find character
+D 32398 Given a character code in A, this finds the location of that char's bytes in the font pointed to by 23606.
+D 32398 The code multiplies A by 8 and adds (23606)
 D 32398 Used by the routine at #R32307.
+R 32398 I:A Char code ('A'=65, etc);
+R 32398 O:HL Address of top scan of data
+@ 32398 label=find_char
 C 32399,3 A into HL
 C 32402,1 x2
 C 32403,1 x4
 C 32404,1 x8
-C 32405,5 Add on the value found here
+C 32405,5 Add on start of font address
 C 32411,1 Result in HL
 b 32412 Data block at 32412
 B 32412,356,8*44,4
