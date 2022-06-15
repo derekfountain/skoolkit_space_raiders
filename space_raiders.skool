@@ -868,13 +868,12 @@ b16384 DEFB 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
  23584 DEFB 0,0,0,0,0,0,0,0
  23592 DEFB 0,0,0,0,0,0,0,0
  23600 DEFB 0,0,0,0,0,0
-; Default font is in the ROM. This points to $3C00, whereas the
-; ROM's char set is at $3D00. The ROM starts with space (char 32)
-; so this points 32*8 before the actual char data.
+; Default font is in the ROM. This points to $3C00, whereas the ROM's char set
+; is at $3D00. The ROM starts with space (char 32) so this points 32*8 before
+; the actual char data.
 @label=_CURRENT_FONT
  23606 DEFB 0
  23607 DEFB 60
-;
  23608 DEFB 64,0,255,205,0,177,95,0
  23616 DEFB 0,0,10,0,255,10,0,7
 
@@ -1047,8 +1046,8 @@ b24605 DEFB 5        ; Speed factor, doesn't change
  24608 DEFB 0
 @label=_EXTRA_LIFE_AWARDED
  24609 DEFB 0
-; Barriers suppressed flag. This starts off zero so the barriers get
-; drawn, but then goes 1 so they don't get drawn again each new screen.
+; Barriers suppressed flag. This starts off zero so the barriers get drawn, but
+; then goes 1 so they don't get drawn again each new screen.
 @label=_BARRIERS_SUPPRESSED
  24610 DEFB 0
 @label=_LIVES_REMAINING
@@ -3248,13 +3247,12 @@ c31327 LD A,(24610)                     ; {If barriers are suppressed we don't
 ; UDGs which make up the barriers.
 ;
 ; Data block at 31371
-b31371 DEFB 255,255
- 31373 DEFB 255,255,255,255,255,255,3,15
- 31381 DEFB 31,63,127,127,255,255,192,240
- 31389 DEFB 248,252,254,254,255,255,252,240
- 31397 DEFB 224,192,128,128,0,0,63,15
- 31405 DEFB 7,3,1,1,0,0,255,255
- 31413 DEFB 255,255,255,255,0,0
+b31371 DEFB 255,255,255,255,255,255,255,255  ; #HTML[#UDG31371,8(0)]
+ 31379 DEFB 3,15,31,63,127,127,255,255       ; #HTML[#UDG31379,8(1)]
+ 31387 DEFB 192,240,248,252,254,254,255,255  ; #HTML[#UDG31387,8(2)]
+ 31395 DEFB 252,240,224,192,128,128,0,0      ; #HTML[#UDG31395,8(3)]
+ 31403 DEFB 63,15,7,3,1,1,0,0                ; #HTML[#UDG31403,8(4)]
+ 31411 DEFB 255,255,255,255,255,255,0,0      ; #HTML[#UDG31411,8(5)]
 
 ; Barrier top row string
 ;
@@ -3274,57 +3272,57 @@ t31424 DEFM "0000",0
 @label=_BARRIER_BOTTOM
 t31429 DEFM "5345",0
 
+; Unused
 @label=_DRAW_BARRIER_COUNT
 s31434 DEFS 1
 
+; Unused
 @label=_BARRIER_ROWS_TO_DRAW
 s31435 DEFS 1
 
 ; Draw barriers
 ;
-; The barriers are built from UDGs. Each barrier is 3 rows of
-; chars high, and each row is printed as a string using a special
-; "font".
-;.
+; The barriers are built from UDGs. Each barrier is 3 rows of chars high, and
+; each row is printed as a string using a special "font".
+; .
 ; Used by the routine at #R24703.
 @label=draw_barriers
-c31436 LD A,(24610)  ; {Barriers suppressed flag, this has to be zero
- 31439 OR A          ;  otherwise the barriers aren't drawn
+c31436 LD A,(24610)  ; {Barriers suppressed flag, this has to be zero otherwise
+ 31439 OR A          ; the barriers aren't drawn
  31440 RET NZ        ; }
  31441 LD HL,(23606) ; {Stash default font address on stack
  31444 PUSH HL       ; }
- 31445 LD HL,30987   ; {Switch to the UDGs here. In theory this is the
-                     ;  start of the "font", but we only use UDGs starting at
-                     ; char '0'. Char '0' is 48 decimal, 48*8 is 384,
-                     ; 30987+384=#R31371
- 31448 LD (23606),HL ; }
+ 31445 LD HL,30987   ; {Switch to the UDGs here. In theory this is the  start
+ 31448 LD (23606),HL ; of the "font", but we only use UDGs starting at char
+                     ; '0'. Char '0' is 48 decimal, 48*8 is 384,
+                     ; 30987+384=#R31371}
  31451 LD A,3        ; {We need to draw 3 barriers
- 31453 LD (31434),A  ;}
+ 31453 LD (31434),A  ; }
  31456 LD BC,5125    ; Y=20, X=05
-*31459 LD HL,31419   ; Sequence of UDGs which display a row of the barrier 
+*31459 LD HL,31419   ; Sequence of UDGs which display a row of the barrier
  31462 PUSH BC       ;
  31463 LD A,3        ; {The graphic is 3 rows per barrier
- 31465 LD (31435),A  ;}
+ 31465 LD (31435),A  ; }
 *31468 CALL 32311    ; Draw a barrier row using the UDG printer code
  31471 DEC C         ; {X=X-4
  31472 DEC C         ;
  31473 DEC C         ;
  31474 DEC C         ; }
  31475 INC B         ; Y=Y+1
- 31476 LD A,(31435)  ; { Barrier row drawn
+ 31476 LD A,(31435)  ; {Barrier row drawn
  31479 DEC A         ;
- 31480 LD (31435),A  ;}
+ 31480 LD (31435),A  ; }
  31483 JR NZ,31468   ; Back for next row
  31485 POP BC        ;
- 31486 LD A,C        ; {Move X along 9 chars
- 31487 ADD A,9       ;  ready for next barrier
+ 31486 LD A,C        ; {Move X along 9 chars ready for next barrier
+ 31487 ADD A,9       ;
  31489 LD C,A        ; }
  31490 LD A,(31434)  ; {One more barrier has been drawn
  31493 DEC A         ;
  31494 LD (31434),A  ; }
  31497 JR NZ,31459   ; Back to do the next one
- 31499 POP HL        ; {Recover default font address
- 31500 LD (23606),HL ; and put it back}
+ 31499 POP HL        ; {Recover default font address and put it back
+ 31500 LD (23606),HL ; }
  31503 LD A,1        ; {Barriers are drawn, flag not to redraw them.
  31505 LD (24610),A  ; }
  31508 RET           ;
@@ -3337,7 +3335,7 @@ b31509 DEFB 0,0,254,0,255,0,1,0
 ; Routine at 31527
 ;
 ; Used by the routines at #R25853 and #R26541.
-c31527 LD A,(24610)  ; { Return immediately if the barriers are suppressed
+c31527 LD A,(24610)  ; {Return immediately if the barriers are suppressed
  31530 OR A          ;
  31531 RET Z         ; }
  31532 LD (31509),BC ;
@@ -3910,11 +3908,11 @@ c32374 PUSH HL       ; Save regs
 
 ; Find character
 ;
-; Given a character code in A, this finds the location of that char's
-; bytes in the font pointed to by 23606.
-;.
+; Given a character code in A, this finds the location of that char's bytes in
+; the font pointed to by 23606.
+; .
 ; The code multiplies A by 8 and adds (23606)
-;.
+; .
 ; Used by the routine at #R32307.
 ;
 ; I:A Char code ('A'=65, etc);
