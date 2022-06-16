@@ -2142,11 +2142,14 @@ c26587 LD BC,65278   ; 0xFEFE - matrix SHIFT, Z, X, C, V
 ; Redraw player ship
 ;
 ; If the player's ship needs to move, erase and redraw it.
-; The ypos adjustment comes from the keypress routine, and
-; will be -1 to move a pixel left, or 1 to move a pixel
-; right.
+; The ypos adjustment typically comes from the keypress routine, and
+; will be -1 to move a pixel left, or 1 to move a pixel right. This
+; code is used in a more contrived manner to animate a new ship when
+; an extra life is awarded.
 ;.
 ; Used by the routines at #R26566 and #R26965.
+;
+; O:IX #R24638
 @label=redraw_player_ship
 c26675 LD A,(24640)  ; Player ship position adjustment, -1, 0 or 1
  26678 OR A          ; {Ship doesn't need to move, just return
@@ -2198,14 +2201,14 @@ b26721 DEFB 0        ; Fire released flag, local to keypress routine
 ; clear as sprite moves left or right. These define an edge of the sprite
 ; rather than the whole sprite itself. The edge is removed by one set of data
 ; and drawn in by the other set.
-@label=_PLAYER_SHIP_LEFT_CLEAR
+@label=_GFX_PLAYER_SHIP_LEFT_CLEAR
 b26722 DEFB 10,0,9,1,1,2,9
  26729 DEFB 2,19,2,1,3,9,3,19
  26737 DEFB 3,1,4,6,4,18,4,1
  26745 DEFB 5,1,6,6,6,18,6,1
  26753 DEFB 7,7,7,19,7,255
 ;
-@label=_PLAYER_SHIP_LEFT_DRAW
+@label=_GFX_PLAYER_SHIP_LEFT_DRAW
  26759 DEFB 11,0
  26761 DEFB 12,1,2,2,12,2,20,2
  26769 DEFB 2,3,12,3,20,3,3,4
@@ -2213,21 +2216,21 @@ b26722 DEFB 10,0,9,1,1,2,9
  26785 DEFB 15,6,20,6,2,7,14,7
  26793 DEFB 20,7,255
 ;
-@label=_PLAYER_SHIP_RIGHT_CLEAR
+@label=_GFX_PLAYER_SHIP_RIGHT_CLEAR
  26796 DEFB 10,0,11,1,1
  26801 DEFB 2,11,2,19,2,1,3,11
  26809 DEFB 3,19,3,2,4,14,4,19
  26817 DEFB 4,19,5,2,6,14,6,19
  26825 DEFB 6,1,7,13,7,19,7,255
 ;
-@label=_PLAYER_SHIP_RIGHT_DRAW
+@label=_GFX_PLAYER_SHIP_RIGHT_DRAW
  26833 DEFB 9,0,8,1,0,2,8,2
  26841 DEFB 18,2,0,3,8,3,18,3
  26849 DEFB 0,4,5,4,17,4,0,5
  26857 DEFB 0,6,5,6,17,6,0,7
  26865 DEFB 6,7,18,7,255
 ; This looks like a vertical line, might be a bullet?
-@label=_BULLET
+@label=_GFX_BULLET
  26870 DEFB 0
  26871 DEFB 0,0,1
  26874 DEFB 0,2,0,3,0,4,0,5
@@ -2249,26 +2252,32 @@ c26883 CALL 31987                ; Sound burbler
  26910 LD (IX+1),176             ; Bullet ypos starts down here
  26914 JR 26940                  ; Jump to draw bullet
 
-; Routine at 26916
+; Draw the player bullet.
 ;
+; The bullet graphic is cleared from the screen and drawn
+; back in again. ??? Still not sure what the sub4 thing is.
+.
 ; Used by the routine at #R26566.
 @label=draw_player_bullet
 c26916 LD IX,24642   ;
  26920 LD HL,26870   ;
  26923 LD A,1        ; Mode clear
  26925 CALL 31960    ; Clear sprite
- 26928 LD A,(IX+1)   ;
- 26931 SUB 4         ;
+ 26928 LD A,(IX+1)   ; Fetch player bullet xpos
+ 26931 SUB 4         ; {???
  26933 CP 4          ;
- 26935 JR Z,26959    ;
- 26937 LD (IX+1),A   ;
+ 26935 JR Z,26959    ; }
+ 26937 LD (IX+1),A   ; Set player bullet xpos
 ; This entry point is used by the routine at #R26883.
 *26940 LD HL,26870   ;
  26943 XOR A         ; Mode set
  26944 JP 31960      ; Draw sprite
 
-; Routine at 26947
+; Stop player bullet
 ;
+; Player bullet is cleared from screen and the flag
+; indicating there's a bullet in flight is cleared.
+;.
 ; Used by the routines at #R26225, #R26538 and #R26541.
 @label=clear_player_bullet
 c26947 LD IX,24642   ;
@@ -2280,29 +2289,35 @@ c26947 LD IX,24642   ;
  26960 LD (24641),A  ;}
  26963 RET           ;
 
-; ???
+; Temporary store for where the new ship should end up
+; at the end of the scroll animation.
+@label=_NEW_SHIP_TARGET_XPOS
 s26964 DEFS 1
 
-; Draw player ship and scroll it into position.
+; New player ship
 ;
+; Draw player ship and scroll it into position. Called with #R24638
+; and #R24639 holding screen location of new ship.
+;.
 ; Used by the routine which draws lives remaining at the top, and when the a
 ; new life appears at the bottom after dying
+;
 @label=new_player_ship
-c26965 PUSH IX       ; Set by one of the subroutines, ???
+c26965 PUSH IX       ; 
  26967 PUSH HL       ;
  26968 LD A,255      ; {Set up adjustment of -1, which means 1 pixel left
  26970 LD (24640),A  ; }
  26973 LD A,(24638)  ; Player ship pos, X
- 26976 LD (26964),A  ; ???
- 26979 ADD A,40      ;
- 26981 LD (24638),A  ; Player ship pos, X
-*26984 CALL 26675    ;
- 26987 CALL 31987    ; Sound burbler
- 26990 DEFB 1,15,0   ; Move player ship sound? Maybe new player ship sound?
+ 26976 LD (26964),A  ; Store the final xpos (where the scroll finishes)
+ 26979 ADD A,40      ; Start 40 pixels right of final position
+ 26981 LD (24638),A  ; {Set player ship xpos and draw the ship there.
+*26984 CALL 26675    ; Returns with xpos pointed to by IX.}
+ 26987 CALL 31987    ; {Sound burbler with move player ship sound
+ 26990 DEFB 1,15,0   ; }
 ; Sound burbler return point
- 26993 LD A,(26964)  ;
- 26996 CP (IX+0)     ;
- 26999 JR NZ,26984   ;
+ 26993 LD A,(26964)  ; Pick up xpos where we're moving the ship to
+ 26996 CP (IX+0)     ; {Are we there? Adjustment is still -1 so
+ 26999 JR NZ,26984   ; we keep going round until the ship is in place}
  27001 POP HL        ;
  27002 POP IX        ;
  27004 RET           ;
