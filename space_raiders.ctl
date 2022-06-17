@@ -8,8 +8,8 @@ N 23606 Default font is in the ROM. This points to $3C00, whereas the ROM's char
 B 23606,18,1*2,8
 b 23624 Port 254 shadow
 @ 23624 label=_PORT254_SHADOW
-S 23624,16,1,15
-B 23625,21,8*2,5
+S 23624,1,1:n
+B 23625,21,8,7,1,5
 t 23646 Message at 23646
 T 23646,3,3
 b 23649 Data block at 23649
@@ -58,6 +58,7 @@ N 24610 Barriers suppressed flag. This starts off zero so the barriers get drawn
 B 24610,1,1
 @ 24611 label=_LIVES_REMAINING
 B 24611,1,1 Number of lives player has left
+@ 24613 label=_ALIENS_LANDED
 B 24612,3,1
 b 24615 Data block at 24615
 B 24615,23,5,8*2,2
@@ -96,6 +97,7 @@ N 24716 This entry point is used by the routine at #R24919. Top of game loop?
 N 24737 This entry point is used by the routine at #R24868.
 C 24761,3 Lives remaining
 C 24777,3 Lives remaining
+C 24784,7 Have the aliens landed? Game over if they have.
 N 24791 Return to top of game loop
 s 24794 Storage byte for routine that follows
 @ 24794 label=_UNKNOWN1
@@ -261,6 +263,7 @@ C 25652,3 Add A to HL
 C 25655,1 ???
 C 25657,9 Add A to contents of 24603
 c 25686 Add A to HL (1) . There are two copies of this code. . Used by the routine at #R25643.
+D 25686 Used by the routine at #R25643.
 @ 25686 label=add_a_to_hl_1
 b 25691 Data block at 25691
 B 25691,17,8*2,1
@@ -648,16 +651,23 @@ C 30879,3 IX = 27327 + ( 'A' * 706 )
 C 30894,3 Sound burbler
 B 30897,6,6 Don't know what this is
 C 30903,3 ; Not sure where the sound return point is
-c 30995 Routine at 30995
+c 30995 Move aliens down
+D 30995 Aliens have got to one side of the screen, move them down row by row.
 D 30995 Used by the routine at #R30857.
 C 30995,3 Sound burbler
-B 30998,4,4 ???
+B 30998,3,3
+N 31001 Sound burbler return point
+C 31001,3 Lowest alien point?
+C 31004,5 Row 18 is top of barriers, remove them if the aliens are that far
+C 31009,3 Lowest alien point?
 C 31019,3 cxy2saddr: DE = screen address of char C,B
 C 31022,3 Clear one character row (32 chars)
 N 31030 This entry point is used by the routine at #R31064.
+@ 31046 label=aliens_landed
+C 31046,5 Flag that the aliens have landed.
 C 31051,3 Sound burbler
-B 31054,4,4 ???
-c 31064 Routine at 31064
+B 31054,9,3
+C 31063
 D 31064 Used by the routine at #R30857.
 c 31075 Initialise draw aliens
 D 31075 This displays the bands of aliens - from the bottom upwards it's red, bleep, red, bleep, green, bleep, green, bleep, yellow.
@@ -665,7 +675,7 @@ R 31075 Used by the routine at #R24703.
 @ 31075 label=init_draw_aliens
 C 31080,3 IX = 27327 + ( 'A' * 706 )
 C 31089,3 Sound burbler, row of aliens appearing
-B 31092
+B 31092,7,7
 N 31099 Sound burbler return point
 s 31107 Unused
 S 31107,12,12
