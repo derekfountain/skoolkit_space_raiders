@@ -878,7 +878,9 @@ b16384 DEFB 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
  23616 DEFB 0,0,10,0,255,10,0,7
 
 ; Port 254 shadow
-b23624 DEFS 1,15
+@label=_PORT254_SHADOW
+b23624 DEFS 1
+ 23625 DEFS 15
  23625 DEFB 0,0,15,93,0,0,182,92
  23633 DEFB 187,92,203,92,15,93,202,92
  23641 DEFB 16,93,19,93,14
@@ -1033,8 +1035,21 @@ b24481 DEFB 127,16,237,16,13,0,9,0
 t24584 DEFM "RDM!"
 
 ; Data block at 24588
-b24588 DEFB 0,128,237,176,201,5,6,4
- 24596 DEFB 4,2,2,7,3,0,0,0
+b24588 DEFB 0,128,237,176,201
+; This one is used to initialise the screen. The lives ships on the
+; top row and barriers are cyan on black. It never changes during the
+; game.
+@label=_SCREEN_ATT_CYAN_ON_BLACK
+ 24593 DEFB 5
+ 24594 DEFB 6,4
+ 24596 DEFB 4,2,2
+; This one is the colour for the player ship row
+@label=SCREEN_ATT_WHITE_ON_BLACK
+ 24599 DEFB 7
+; This one is the colour for the spaceship row
+@label=SCREEN_ATT_MAGENTA_ON_BLACK
+ 24600 DEFB 3
+ 24601 DEFB 0,0,0
  24604 DEFB 0
 
 ; Game runtime data
@@ -1077,6 +1092,7 @@ b24615 DEFB 0,114,121,230,128
  24645 DEFB 25,235,201,205,251,114,58
 @label=_FIRE_PRESSED
  24652 DEFB 0
+@label=_SPACESHIP_DIRECTION
  24653 DEFB 0
 
 ; Game initialisation data
@@ -1399,40 +1415,49 @@ c25160 CALL 32302                                     ; Print string which
  25225 JP 24703                                       ; Jump back to start of
                                                       ; main loop for new game
 
-; Routine at 25228
+; Initialise game screen attributes
 ;
+; Set screen attributes to black
+;.
 ; Used by the routine at #R24703.
-c25228 LD A,(24593)   ;
+@label=init_attributes
+c25228 LD A,(24593)   ; Pick up screen default attributes
 ; This entry point is used by the routine at #R25160.
- 25231 AND 56         ;
+ 25231 AND 56         ; Mask out ink bits, leaving border same as screen paper
  25233 LD (23624),A   ; Copy into port 254 shadow
- 25236 LD A,(24593)   ;
+ 25236 LD A,(24593)   ; Pick up screen default attributes again
 ; This entry point is used by the routine at #R25160.
- 25239 LD BC,3        ;
- 25242 LD HL,22528    ;
-*25245 LD (HL),A      ;
- 25246 INC HL         ;
+ 25239 LD BC,3        ; Writing 256*3 attributes.
+ 25242 LD HL,22528    ; Start of attributes, top left corner
+*25245 LD (HL),A      ; Set to A
+ 25246 INC HL         ; Next
 ; This entry point is used by the routine at #R25160.
- 25247 DJNZ 25245     ;
- 25249 DEC C          ;
+ 25247 DJNZ 25245     ; Back for next byte
+ 25249 DEC C          ; 
 ; This entry point is used by the routine at #R25160.
- 25250 JR NZ,25245    ;
+ 25250 JR NZ,25245    ; Back for next third
+; Whole screen attributes have been set, there's a little beep here
  25252 CALL 31987     ; Sound burbler
- 25255 DEFB 100,100,0 ; Screen cleared sound ???
+ 25255 DEFB 100,100,0 ; Tiny beep before player ship appears
 ; Sound burbler return point
- 25258 LD BC,256      ; Row 1, col 0, score and lives row
- 25261 LD A,(24600)   ; INK colour from here
- 25264 LD E,A         ;
- 25265 LD D,32        ; The full row (32 cells)
- 25267 CALL 31290     ; Set INK colour
+;
+ 25258 LD BC,256      ; Row 1, col 0, spaceship row
+ 25261 LD A,(24600)   ; {Spaceship colour (magenta) from here
+ 25264 LD E,A         ; }
+ 25265 LD D,32        ; {Set the full row (32 cells)
+ 25267 CALL 31290     ; to that colour}
  25270 LD BC,5888     ; Row 23, col 0, player row
- 25273 LD A,(24599)   ; INK colour from here
- 25276 LD E,A         ;
- 25277 LD D,32        ; The full row (32 cells)
- 25279 JP 31290       ; Set INK colour
+ 25273 LD A,(24599)   ; {Player colour (white) from here
+ 25276 LD E,A         ; }
+ 25277 LD D,32        ; {Set the full row (32 cells)
+ 25279 JP 31290       ; to that colour, then return}
 
 ; Data block at 25282
-b25282 DEFB 0,0,8,1,19,1,20,2
+@label=_SPACESHIP_YPOS           ; Maybe, it's unused in the code
+b25282 DEFB 0
+@label=_SPACESHIP_XPOS
+ 25283 DEFB 0
+ 25284 DEFB 8,1,19,1,20,2
  25290 DEFB 3,3,7,3,12,3,17,3
  25298 DEFB 21,3,2,4,7,4,12,4
  25306 DEFB 17,4,22,4,3,5,7,5
@@ -1473,11 +1498,13 @@ c25442 LD A,(24653)  ;
  25472 XOR A         ;
  25473 LD (25283),A  ;
  25476 RET           ;
+;
 *25477 LD A,255      ;
  25479 LD (24653),A  ;
  25482 LD A,233      ;
  25484 LD (25283),A  ;
  25487 RET           ;
+;
 *25488 LD A,(25285)  ;
  25491 NEG           ;
  25493 LD (25285),A  ;
@@ -3119,21 +3146,26 @@ c31064 LD BC,(31109) ;
  31072 LD C,A        ;
  31073 JR 31030      ;
 
-; Routine at 31075
+; Initialise draw aliens
+;
+; This displays the bands of aliens - from the bottom upwards
+; it's red, bleep, red, bleep, green, bleep, green, bleep, yellow.
 ;
 ; Used by the routine at #R24703.
+@label=init_draw_aliens
 c31075 LD A,4        ;
 *31077 LD (24632),A  ;
  31080 CALL 27097    ; IX = 27327 + ( 'A' * 706 )
  31083 CALL 31119    ;
  31086 CALL 31198    ;
- 31089 CALL 31987    ; Sound burbler
+ 31089 CALL 31987    ; Sound burbler, row of aliens appearing
  31092 DEFB 25,240   ; ???
  31094 LD H,H        ;
  31095 LD A,B        ;
  31096 ADD HL,DE     ;
  31097 RET P         ;
  31098 NOP           ;
+; Sound burbler return point
  31099 LD A,(24632)  ;
  31102 DEC A         ;
  31103 JP P,31077    ;
@@ -3236,7 +3268,7 @@ c31257 LD DE,(31116) ;
 ; I:C first cx
 ; I:D Number of attributes to set
 ; I:E INK colour
-;   @label=set_attributes_xy_n
+@label=set_attributes_xy_n
 c31290 CALL 32343    ; Find attribute address of cy,cx in BC
 *31293 LD A,248      ; {Clear INK in attribute cell
  31295 AND (HL)      ; }
@@ -3671,7 +3703,9 @@ c32034 LD A,(31986)  ; Pick up saved border colour
 b32055 DEFB 186
 
 ; Message at 32056
-t32056 DEFM "]lM"
+b32056 DEFB 93
+ 32057 DEFB 49
+ 32058 DEFB 77
 
 ; Routine at 32059
 ;
