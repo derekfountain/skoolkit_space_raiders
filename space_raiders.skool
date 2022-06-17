@@ -879,10 +879,10 @@ b16384 DEFB 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 
 ; Port 254 shadow
 @label=_PORT254_SHADOW
-b23624 DEFS 1
- 23625 DEFS 15
+b23624 DEFS 1,15
  23625 DEFB 0,0,15,93,0,0,182,92
- 23633 DEFB 187,92,203,92,15,93,202,92
+ 23633 DEFB 187,92,203,92,15,93,202
+ 23640 DEFB 92
  23641 DEFB 16,93,19,93,14
 
 ; Message at 23646
@@ -1036,9 +1036,8 @@ t24584 DEFM "RDM!"
 
 ; Data block at 24588
 b24588 DEFB 0,128,237,176,201
-; This one is used to initialise the screen. The lives ships on the
-; top row and barriers are cyan on black. It never changes during the
-; game.
+; This one is used to initialise the screen. The lives ships on the top row and
+; barriers are cyan on black. It never changes during the game.
 @label=_SCREEN_ATT_CYAN_ON_BLACK
  24593 DEFB 5
  24594 DEFB 6,4
@@ -1226,7 +1225,7 @@ c24868 LD A,(24653)  ;
  24889 CALL 24908    ;
 *24892 LD A,(24641)  ; {Return if a bullet is in flight
  24895 OR A          ;
- 24896 JP NZ,24737   ;}
+ 24896 JP NZ,24737   ; }
  24899 LD A,(24607)  ;
  24902 CALL 24908    ;
  24905 JP 24737      ;
@@ -1418,7 +1417,7 @@ c25160 CALL 32302                                     ; Print string which
 ; Initialise game screen attributes
 ;
 ; Set screen attributes to black
-;.
+; .
 ; Used by the routine at #R24703.
 @label=init_attributes
 c25228 LD A,(24593)   ; Pick up screen default attributes
@@ -1433,24 +1432,23 @@ c25228 LD A,(24593)   ; Pick up screen default attributes
  25246 INC HL         ; Next
 ; This entry point is used by the routine at #R25160.
  25247 DJNZ 25245     ; Back for next byte
- 25249 DEC C          ; 
+ 25249 DEC C          ;
 ; This entry point is used by the routine at #R25160.
  25250 JR NZ,25245    ; Back for next third
 ; Whole screen attributes have been set, there's a little beep here
  25252 CALL 31987     ; Sound burbler
  25255 DEFB 100,100,0 ; Tiny beep before player ship appears
 ; Sound burbler return point
-;
  25258 LD BC,256      ; Row 1, col 0, spaceship row
  25261 LD A,(24600)   ; {Spaceship colour (magenta) from here
  25264 LD E,A         ; }
- 25265 LD D,32        ; {Set the full row (32 cells)
- 25267 CALL 31290     ; to that colour}
+ 25265 LD D,32        ; {Set the full row (32 cells) to that colour
+ 25267 CALL 31290     ; }
  25270 LD BC,5888     ; Row 23, col 0, player row
  25273 LD A,(24599)   ; {Player colour (white) from here
  25276 LD E,A         ; }
- 25277 LD D,32        ; {Set the full row (32 cells)
- 25279 JP 31290       ; to that colour, then return}
+ 25277 LD D,32        ; {Set the full row (32 cells) to that colour, then
+ 25279 JP 31290       ; return}
 
 ; Data block at 25282
 @label=_SPACESHIP_YPOS           ; Maybe, it's unused in the code
@@ -1498,13 +1496,11 @@ c25442 LD A,(24653)  ;
  25472 XOR A         ;
  25473 LD (25283),A  ;
  25476 RET           ;
-;
 *25477 LD A,255      ;
  25479 LD (24653),A  ;
  25482 LD A,233      ;
  25484 LD (25283),A  ;
  25487 RET           ;
-;
 *25488 LD A,(25285)  ;
  25491 NEG           ;
  25493 LD (25285),A  ;
@@ -1535,7 +1531,7 @@ c25442 LD A,(24653)  ;
  25553 CALL 31960    ; Draw sprite
  25556 LD A,(24641)  ; {Return if no bullet in flight
  25559 OR A          ;
- 25560 RET Z         ;}
+ 25560 RET Z         ; }
  25561 LD IX,24642   ;
  25565 LD A,(IX+1)   ;
  25568 CP 16         ;
@@ -1600,10 +1596,9 @@ c25643 LD A,(32058)  ; ???
  25681 LD A,2        ;
  25683 JP 24935      ;
 
-; Add A to HL (1)
-;.
-; There are two copies of this code.
-;.
+; Add A to HL (1) . There are two copies of this code. . Used by the routine at
+; #R25643.
+;
 ; Used by the routine at #R25643.
 @label=add_a_to_hl_1
 c25686 ADD A,L       ;
@@ -1818,7 +1813,7 @@ c26020 LD A,(IX+1)   ;
 ; Used by the routine at #R24703.
 c26038 LD A,(24641)  ; {Return if no bullet in flight
  26041 OR A          ;
- 26042 RET Z         ;}
+ 26042 RET Z         ; }
  26043 CALL 26049    ;
  26046 JP 26490      ;
 
@@ -2037,7 +2032,7 @@ c26464 LD A,(26099)  ;
 ; Add A to HL (2)
 ;
 ; There are two copies of this code.
-;.
+; .
 ; Used by the routines at #R26375 and #R26464.
 @label=add_a_to_hl_2
 c26484 ADD A,L       ;
@@ -2096,7 +2091,7 @@ c26566 CALL 26587    ; Read keyboard
  26569 CALL 26675    ;
  26572 LD A,(24641)  ; {Return if bullet in flight
  26575 OR A          ;
- 26576 JP NZ,26916   ;}
+ 26576 JP NZ,26916   ; }
  26579 LD A,(24652)  ; {Has fire been pressed? Return if not
  26582 OR A          ;
  26583 RET Z         ; }
@@ -2168,12 +2163,11 @@ c26587 LD BC,65278   ; 0xFEFE - matrix SHIFT, Z, X, C, V
 
 ; Redraw player ship
 ;
-; If the player's ship needs to move, erase and redraw it.
-; The ypos adjustment typically comes from the keypress routine, and
-; will be -1 to move a pixel left, or 1 to move a pixel right. This
-; code is used in a more contrived manner to animate a new ship when
-; an extra life is awarded.
-;.
+; If the player's ship needs to move, erase and redraw it. The ypos adjustment
+; typically comes from the keypress routine, and will be -1 to move a pixel
+; left, or 1 to move a pixel right. This code is used in a more contrived
+; manner to animate a new ship when an extra life is awarded.
+; .
 ; Used by the routines at #R26566 and #R26965.
 ;
 ; O:IX #R24638
@@ -2181,27 +2175,27 @@ c26587 LD BC,65278   ; 0xFEFE - matrix SHIFT, Z, X, C, V
 c26675 LD A,(24640)  ; Player ship position adjustment, -1, 0 or 1
  26678 OR A          ; {Ship doesn't need to move, just return
  26679 RET Z         ; }
- 26680 JP P,26684    ; {1 has an odd number of bits. -1, even.
- 26683 XOR A         ; A=0 if moving right, A=1 if moving left.}
+ 26680 JP P,26684    ; {1 has an odd number of bits. -1, even. A=0 if moving
+ 26683 XOR A         ; right, A=1 if moving left.}
 *26684 LD IX,24638   ; IX points to player ship pos, X
  26688 CALL 26712    ; Select sprite data based on A
  26691 LD A,1        ; Mode clear
  26693 CALL 31960    ; Clear sprite side pixels
  26696 XOR A         ; Mode set
  26697 CALL 31960    ; Draw sprite side pixels
- 26700 LD A,(24640)  ; {Pick up adjustment again and add it
- 26703 LD B,A        ; to the current xpos value. Adding -1 or
- 26704 LD A,(24638)  ; 1 makes it the correct position value.
- 26707 ADD A,B       ; Then write it back out.
+ 26700 LD A,(24640)  ; {Pick up adjustment again and add it to the current xpos
+ 26703 LD B,A        ; value. Adding -1 or 1 makes it the correct position
+ 26704 LD A,(24638)  ; value. Then write it back out.
+ 26707 ADD A,B       ;
  26708 LD (24638),A  ; }
  26711 RET           ;
 
 ; Select player ship sprite data
 ;
 ; Set HL to #R26722 if A is 1, or #R26796 is A is 0.
-;.
-; A is used to indicate whether the ship needs to move left or right.
-; Choose the correct sprite data ready for the redraw.
+; .
+; A is used to indicate whether the ship needs to move left or right. Choose
+; the correct sprite data ready for the redraw.
 ;
 ; I:A 0 if player moving right, 1 if player moving left
 ; O:HL Sprite data address
@@ -2234,7 +2228,6 @@ b26722 DEFB 10,0,9,1,1,2,9
  26737 DEFB 3,1,4,6,4,18,4,1
  26745 DEFB 5,1,6,6,6,18,6,1
  26753 DEFB 7,7,7,19,7,255
-;
 @label=_GFX_PLAYER_SHIP_LEFT_DRAW
  26759 DEFB 11,0
  26761 DEFB 12,1,2,2,12,2,20,2
@@ -2242,14 +2235,12 @@ b26722 DEFB 10,0,9,1,1,2,9
  26777 DEFB 15,4,20,4,20,5,3,6
  26785 DEFB 15,6,20,6,2,7,14,7
  26793 DEFB 20,7,255
-;
 @label=_GFX_PLAYER_SHIP_RIGHT_CLEAR
  26796 DEFB 10,0,11,1,1
  26801 DEFB 2,11,2,19,2,1,3,11
  26809 DEFB 3,19,3,2,4,14,4,19
  26817 DEFB 4,19,5,2,6,14,6,19
  26825 DEFB 6,1,7,13,7,19,7,255
-;
 @label=_GFX_PLAYER_SHIP_RIGHT_DRAW
  26833 DEFB 9,0,8,1,0,2,8,2
  26841 DEFB 18,2,0,3,8,3,18,3
@@ -2270,20 +2261,20 @@ b26722 DEFB 10,0,9,1,1,2,9
 c26883 CALL 31987                ; Sound burbler
  26886 DEFB 20,50,10,100,5,200,0 ; Player fire sound
 ; Sound burbler return point
- 26893 LD A,1                    ; { Mark bullet in flight
- 26895 LD (24641),A              ;}
- 26898 LD A,(24638)              ; {Player xpos plus half the
- 26901 LD IX,24642               ; width of the player ship
- 26905 ADD A,10                  ; is the bullet's xpos
- 26907 LD (IX+0),A               ;}
+ 26893 LD A,1                    ; {Mark bullet in flight
+ 26895 LD (24641),A              ; }
+ 26898 LD A,(24638)              ; {Player xpos plus half the width of the
+ 26901 LD IX,24642               ; player ship is the bullet's xpos
+ 26905 ADD A,10                  ;
+ 26907 LD (IX+0),A               ; }
  26910 LD (IX+1),176             ; Bullet ypos starts down here
  26914 JR 26940                  ; Jump to draw bullet
 
 ; Draw the player bullet.
 ;
-; The bullet graphic is cleared from the screen and drawn
-; back in again. ??? Still not sure what the sub4 thing is.
-.
+; The bullet graphic is cleared from the screen and drawn back in again. ???
+; Still not sure what the sub4 thing is.
+;
 ; Used by the routine at #R26566.
 @label=draw_player_bullet
 c26916 LD IX,24642   ;
@@ -2302,9 +2293,9 @@ c26916 LD IX,24642   ;
 
 ; Stop player bullet
 ;
-; Player bullet is cleared from screen and the flag
-; indicating there's a bullet in flight is cleared.
-;.
+; Player bullet is cleared from screen and the flag indicating there's a bullet
+; in flight is cleared.
+; .
 ; Used by the routines at #R26225, #R26538 and #R26541.
 @label=clear_player_bullet
 c26947 LD IX,24642   ;
@@ -2313,38 +2304,37 @@ c26947 LD IX,24642   ;
  26956 CALL 31960    ; Clear sprite
 ; This entry point is used by the routine at #R26916.
 *26959 XOR A         ; {Bullet no longer in flight
- 26960 LD (24641),A  ;}
+ 26960 LD (24641),A  ; }
  26963 RET           ;
 
-; Temporary store for where the new ship should end up
-; at the end of the scroll animation.
+; Temporary store for where the new ship should end up at the end of the scroll
+; animation.
 @label=_NEW_SHIP_TARGET_XPOS
 s26964 DEFS 1
 
 ; New player ship
 ;
-; Draw player ship and scroll it into position. Called with #R24638
-; and #R24639 holding screen location of new ship.
-;.
+; Draw player ship and scroll it into position. Called with #R24638 and #R24639
+; holding screen location of new ship.
+; .
 ; Used by the routine which draws lives remaining at the top, and when the a
 ; new life appears at the bottom after dying
-;
 @label=new_player_ship
-c26965 PUSH IX       ; 
+c26965 PUSH IX       ;
  26967 PUSH HL       ;
  26968 LD A,255      ; {Set up adjustment of -1, which means 1 pixel left
  26970 LD (24640),A  ; }
  26973 LD A,(24638)  ; Player ship pos, X
  26976 LD (26964),A  ; Store the final xpos (where the scroll finishes)
  26979 ADD A,40      ; Start 40 pixels right of final position
- 26981 LD (24638),A  ; {Set player ship xpos and draw the ship there.
-*26984 CALL 26675    ; Returns with xpos pointed to by IX.}
+ 26981 LD (24638),A  ; {Set player ship xpos and draw the ship there. Returns
+*26984 CALL 26675    ; with xpos pointed to by IX.}
  26987 CALL 31987    ; {Sound burbler with move player ship sound
  26990 DEFB 1,15,0   ; }
 ; Sound burbler return point
  26993 LD A,(26964)  ; Pick up xpos where we're moving the ship to
- 26996 CP (IX+0)     ; {Are we there? Adjustment is still -1 so
- 26999 JR NZ,26984   ; we keep going round until the ship is in place}
+ 26996 CP (IX+0)     ; {Are we there? Adjustment is still -1 so we keep going
+ 26999 JR NZ,26984   ; round until the ship is in place}
  27001 POP HL        ;
  27002 POP IX        ;
  27004 RET           ;
@@ -3148,28 +3138,23 @@ c31064 LD BC,(31109) ;
 
 ; Initialise draw aliens
 ;
-; This displays the bands of aliens - from the bottom upwards
-; it's red, bleep, red, bleep, green, bleep, green, bleep, yellow.
-;
+; This displays the bands of aliens - from the bottom upwards it's red, bleep,
+; red, bleep, green, bleep, green, bleep, yellow.
+;.
 ; Used by the routine at #R24703.
 @label=init_draw_aliens
-c31075 LD A,4        ;
-*31077 LD (24632),A  ;
- 31080 CALL 27097    ; IX = 27327 + ( 'A' * 706 )
- 31083 CALL 31119    ;
- 31086 CALL 31198    ;
- 31089 CALL 31987    ; Sound burbler, row of aliens appearing
- 31092 DEFB 25,240   ; ???
- 31094 LD H,H        ;
- 31095 LD A,B        ;
- 31096 ADD HL,DE     ;
- 31097 RET P         ;
- 31098 NOP           ;
+c31075 LD A,4                       ;
+*31077 LD (24632),A                 ;
+ 31080 CALL 27097                   ; IX = 27327 + ( 'A' * 706 )
+ 31083 CALL 31119                   ;
+ 31086 CALL 31198                   ;
+ 31089 CALL 31987                   ; Sound burbler, row of aliens appearing
+ 31092 DEFB 25,240,100,120,25,240,0 ;
 ; Sound burbler return point
- 31099 LD A,(24632)  ;
- 31102 DEC A         ;
- 31103 JP P,31077    ;
- 31106 RET           ;
+ 31099 LD A,(24632)                 ;
+ 31102 DEC A                        ;
+ 31103 JP P,31077                   ;
+ 31106 RET                          ;
 
 ; Unused
 s31107 DEFS 12
@@ -3322,12 +3307,12 @@ c31327 LD A,(24610)                     ; {If barriers are suppressed we don't
 ; UDGs which make up the barriers.
 ;
 ; Data block at 31371
-b31371 DEFB 255,255,255,255,255,255,255,255  ; #HTML[#UDG31371,8(0)]
- 31379 DEFB 3,15,31,63,127,127,255,255       ; #HTML[#UDG31379,8(1)]
- 31387 DEFB 192,240,248,252,254,254,255,255  ; #HTML[#UDG31387,8(2)]
- 31395 DEFB 252,240,224,192,128,128,0,0      ; #HTML[#UDG31395,8(3)]
- 31403 DEFB 63,15,7,3,1,1,0,0                ; #HTML[#UDG31403,8(4)]
- 31411 DEFB 255,255,255,255,255,255,0,0      ; #HTML[#UDG31411,8(5)]
+b31371 DEFB 255,255,255,255,255,255,255,255 ; #HTML[#UDG31371,8(0)]
+ 31379 DEFB 3,15,31,63,127,127,255,255      ; #HTML[#UDG31379,8(1)]
+ 31387 DEFB 192,240,248,252,254,254,255,255 ; #HTML[#UDG31387,8(2)]
+ 31395 DEFB 252,240,224,192,128,128,0,0     ; #HTML[#UDG31395,8(3)]
+ 31403 DEFB 63,15,7,3,1,1,0,0               ; #HTML[#UDG31403,8(4)]
+ 31411 DEFB 255,255,255,255,255,255,0,0     ; #HTML[#UDG31411,8(5)]
 
 ; Barrier top row string
 ;
@@ -3704,7 +3689,7 @@ b32055 DEFB 186
 
 ; Message at 32056
 b32056 DEFB 93
- 32057 DEFB 49
+ 32057 DEFB 108
  32058 DEFB 77
 
 ; Routine at 32059

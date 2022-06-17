@@ -7,7 +7,8 @@ N 23606 Default font is in the ROM. This points to $3C00, whereas the ROM's char
 @ 23606 label=_CURRENT_FONT
 B 23606,18,1*2,8
 b 23624 Port 254 shadow
-S 23624,1,1:n
+@ 23624 label=_PORT254_SHADOW
+S 23624,16,1,15
 B 23625,21,8*2,5
 t 23646 Message at 23646
 T 23646,3,3
@@ -36,7 +37,16 @@ B 24481,103,8*12,7
 t 24584 Message at 24584
 T 24584,4,4
 b 24588 Data block at 24588
-B 24588,17,8*2,1
+B 24588,5,5
+N 24593 This one is used to initialise the screen. The lives ships on the top row and barriers are cyan on black. It never changes during the game.
+@ 24593 label=_SCREEN_ATT_CYAN_ON_BLACK
+B 24593,6,1,2,3
+N 24599 This one is the colour for the player ship row
+@ 24599 label=SCREEN_ATT_WHITE_ON_BLACK
+B 24599,1,1
+N 24600 This one is the colour for the spaceship row
+@ 24600 label=SCREEN_ATT_MAGENTA_ON_BLACK
+B 24600,5,1,3,1
 b 24605 Game runtime data
 @ 24605 label=_GAME_RUNTIME_DATA
 @ 24605 label=_SPEED_FACTOR
@@ -57,7 +67,12 @@ B 24638,1,1 Player ship pos, X
 B 24639,1,1 Player ship pos, Y
 @ 24640 label=_YPOS_ADJUST
 B 24640,1,1 Player ship adjustment, -1, 0 or +1
-B 24641,13,1*2,2,7,1
+@ 24641 label=_PLAYER_BULLET_IN_FLIGHT
+@ 24642 label=_PLAYER_BULLET_XPOS
+@ 24643 label=_PLAYER_BULLET_YPOS
+@ 24652 label=_FIRE_PRESSED
+@ 24653 label=_SPACESHIP_DIRECTION
+B 24641,13,1*4,7,1
 b 24654 Game initialisation data
 @ 24654 label=_GAME_INIT_DATA
 B 24654,1,1 Speed factor
@@ -103,6 +118,7 @@ D 24868 Used by the routine at #R24703.
 C 24874,3 Load A with speed factor
 C 24877,3 Busy wait a multiple of 'A' states
 C 24880,3 Player ship position adjustment, -1, 0 or 1
+C 24892,7 Return if a bullet is in flight
 c 24908 delay_ms (approx)
 D 24908 Busy wait routine, pauses around 4360 * 'A' Ts. One iteration is about 1.25ms on the 3.5MHz Z80.
 R 24908 I:A Number of iterations to spin for
@@ -177,26 +193,38 @@ N 25216 Wait for fire to be pressed
 C 25216,3 Read keyboard
 C 25219,6 Has fire pressed flag gone true? If not, loop back and read the keyboard again
 C 25225,3 Jump back to start of main loop for new game
-c 25228 Routine at 25228
+c 25228 Initialise game screen attributes
+D 25228 Set screen attributes to black
 D 25228 Used by the routine at #R24703.
+@ 25228 label=init_attributes
+C 25228,3 Pick up screen default attributes
 N 25231 This entry point is used by the routine at #R25160.
+C 25231,2 Mask out ink bits, leaving border same as screen paper
 C 25233,3 Copy into port 254 shadow
+C 25236,3 Pick up screen default attributes again
 N 25239 This entry point is used by the routine at #R25160.
+C 25239,3 Writing 256*3 attributes.
+C 25242,3 Start of attributes, top left corner
+C 25245,1 Set to A
+C 25246,1 Next
 N 25247 This entry point is used by the routine at #R25160.
+C 25247,2 Back for next byte
 N 25250 This entry point is used by the routine at #R25160.
+C 25250,2 Back for next third
+N 25252 Whole screen attributes have been set, there's a little beep here
 C 25252,3 Sound burbler
-B 25255,3,3 Screen cleared sound ???
+B 25255,3,3 Tiny beep before player ship appears
 N 25258 Sound burbler return point
-C 25258,3 Row 1, col 0, score and lives row
-C 25261,3 INK colour from here
-C 25265,2 The full row (32 cells)
-C 25267,3 Set INK colour
+C 25258,3 Row 1, col 0, spaceship row
+C 25261,4 Spaceship colour (magenta) from here
+C 25265,5 Set the full row (32 cells) to that colour
 C 25270,3 Row 23, col 0, player row
-C 25273,3 INK colour from here
-C 25277,2 The full row (32 cells)
-C 25279,3 Set INK colour
+C 25273,4 Player colour (white) from here
+C 25277,5 Set the full row (32 cells) to that colour, then return
 b 25282 Data block at 25282
-B 25282,160,8
+@ 25282 label=_SPACESHIP_YPOS           ; Maybe, it's unused in the code
+@ 25283 label=_SPACESHIP_XPOS
+B 25282,160,1*2,6,8
 c 25442 Routine at 25442
 D 25442 Used by the routine at #R24703.
 N 25537 This entry point is used by the routines at #R25592 and #R26225.
@@ -206,6 +234,7 @@ C 25547,2 Mode clear
 C 25549,3 Clear sprite
 C 25552,1 Mode set
 C 25553,3 Draw sprite
+C 25556,5 Return if no bullet in flight
 c 25592 Routine at 25592
 D 25592 Used by the routine at #R25442.
 @ 25592 label=hit_spaceship
@@ -231,9 +260,8 @@ C 25649,3 0x6427, H=100 L=39
 C 25652,3 Add A to HL
 C 25655,1 ???
 C 25657,9 Add A to contents of 24603
-c 25686 Add A to HL
-D 25686 Used by the routine at #R25643.
-@ 25686 label=add_a_to_hl
+c 25686 Add A to HL (1) . There are two copies of this code. . Used by the routine at #R25643.
+@ 25686 label=add_a_to_hl_1
 b 25691 Data block at 25691
 B 25691,17,8*2,1
 c 25708 Routine at 25708
@@ -292,6 +320,7 @@ C 26030,3 Clear sprite
 N 26033 This entry point is used by the routine at #R25853.
 c 26038 Routine at 26038
 D 26038 Used by the routine at #R24703.
+C 26038,5 Return if no bullet in flight
 c 26049 Routine at 26049
 D 26049 Used by the routine at #R26038.
 C 26068,3 IX = 27327 + ( 'A' * 706 )
@@ -329,8 +358,10 @@ b 26459 Data block at 26459
 B 26459,5,5
 c 26464 Routine at 26464
 D 26464 Used by the routine at #R26225.
-c 26484 Routine at 26484
+c 26484 Add A to HL (2)
+D 26484 There are two copies of this code.
 D 26484 Used by the routines at #R26375 and #R26464.
+@ 26484 label=add_a_to_hl_2
 s 26489 Unused
 S 26489,1,1
 c 26490 Routine at 26490
@@ -341,14 +372,16 @@ B 26531,7,7 Hit alien bullet sound
 C 26538,3 Sound burbler return point
 c 26541 Routine at 26541
 D 26541 Used by the routine at #R26490.
-c 26566 Routine at 26566
+c 26566 Fire player bullet
 D 26566 Used by the routine at #R24703.
+@ 26566 label=fire_player_bullet
 C 26566,3 Read keyboard
+C 26572,7 Return if bullet in flight
 C 26579,5 Has fire been pressed? Return if not
+C 26584,3 Handle firing of bullet
 c 26587 Keypress detection
 D 26587 Used by the routines at #R25160 and #R26566
-D 26587 ???? Still not worked out how B being held is propogated ????
-R 26587 O:24652 (fire pressed flag) set 1 if fire has been pressed
+D 26587 Updates values at #R24640, #R24652 and #R26721
 @ 26587 label=read_keyboard
 C 26587,3 0xFEFE - matrix SHIFT, Z, X, C, V
 C 26590,2 Read port into E
@@ -395,69 +428,90 @@ N 26660 Fire is pressed, B is not pressed
 C 26660,7 Is fire released flag set to 0? Jump back and clear fire pressed flag if so
 C 26667,3 Set fire pressed flag to 1
 C 26670,4 Set released flag to 0
-c 26675 Called from ship drawing?
+c 26675 Redraw player ship
+D 26675 If the player's ship needs to move, erase and redraw it. The ypos adjustment typically comes from the keypress routine, and will be -1 to move a pixel left, or 1 to move a pixel right. This code is used in a more contrived manner to animate a new ship when an extra life is awarded.
 D 26675 Used by the routines at #R26566 and #R26965.
+R 26675 O:IX #R24638
+@ 26675 label=redraw_player_ship
 C 26675,3 Player ship position adjustment, -1, 0 or 1
 C 26678,2 Ship doesn't need to move, just return
-C 26680,4 Set A to 0 if there's an odd number of bits. I think this is a sanity check?
+C 26680,4 1 has an odd number of bits. -1, even. A=0 if moving right, A=1 if moving left.
 C 26684,4 IX points to player ship pos, X
-C 26688,3 Set HL to 26722 if A != 0, or 26796 if A == 0
+C 26688,3 Select sprite data based on A
 C 26691,2 Mode clear
-C 26693,3 Clear sprite
+C 26693,3 Clear sprite side pixels
 C 26696,1 Mode set
-C 26697,3 Draw sprite
-C 26704,3 Player ship pos, X
-C 26708,3 Player ship pos, X
-c 26712 Set HL to 26722 or 26796
-D 26712 If A isn't zero, return 26722 in HL If A is zero, return 26796 in HL.
+C 26697,3 Draw sprite side pixels
+C 26700,11 Pick up adjustment again and add it to the current xpos value. Adding -1 or 1 makes it the correct position value. Then write it back out.
+c 26712 Select player ship sprite data
+D 26712 Set HL to #R26722 if A is 1, or #R26796 is A is 0.
+D 26712 A is used to indicate whether the ship needs to move left or right. Choose the correct sprite data ready for the redraw.
+R 26712 I:A 0 if player moving right, 1 if player moving left
+R 26712 O:HL Sprite data address
+@ 26712 label=select_player_ship_sprite
+C 26716,1 Return if A=1, hence left move
+C 26720,1 Return if A=0, hence right move
 b 26721 Keypress routine's fire-released flag
 D 26721 This is set 1 when the fire key is released. It's set 0 when the fire key is pressed. If it's found to be 0 when the fire key is read as pressed the fire-pressed flag is held at 0. In order words the fire-pressed flag will only go true when this is 1, and it's only set 1 when the fire key is found to be released
 @ 26721 label=_FIRE_RELEASED
 B 26721,1,1 Fire released flag, local to keypress routine
-b 26722 Player ship sprite data. x,y pairs, each giving a single pixel Pixels to clear as sprite moves left or right.
-@ 26722 label=_PLAYER_SHIP_CLEAR1
-B 26722,37,7,8*3,6
-N 26759 Other direction
-@ 26759 label=_PLAYER_SHIP_CLEAR2
-B 26759,37,2,8*4,3
-b 26796 Same as above, but flipped??? Not sure
-@ 26796 label=_PLAYER_SHIP_CLEAR3
-B 26796,37,5,8
-N 26833 Other direction
-@ 26833 label=_PLAYER_SHIP_CLEAR4
-B 26833,38,8*4,5,1
-N 26871 This looks like a vertical line, might be a bullet?
-@ 26871 label=_BULLET
-B 26871,12,3,8,1
-c 26883 Routine at 26883
+b 26722 Player ship sprite data
+D 26722 Player ship sprite data. x,y pairs, each giving a single pixel Pixels to clear as sprite moves left or right. These define an edge of the sprite rather than the whole sprite itself. The edge is removed by one set of data and drawn in by the other set.
+@ 26722 label=_GFX_PLAYER_SHIP_LEFT_CLEAR
+@ 26759 label=_GFX_PLAYER_SHIP_LEFT_DRAW
+@ 26796 label=_GFX_PLAYER_SHIP_RIGHT_CLEAR
+@ 26833 label=_GFX_PLAYER_SHIP_RIGHT_DRAW
+B 26722,148,7,8*3,6,2,8*4,3,5,8*8,5
+N 26870 This looks like a vertical line, might be a bullet?
+@ 26870 label=_GFX_BULLET
+B 26870,13,1,3,8,1
+c 26883 Fire pressed
 D 26883 Used by the routine at #R26566.
+@ 26883 label=fire_pressed
 C 26883,3 Sound burbler
 B 26886,7,7 Player fire sound
 N 26893 Sound burbler return point
-c 26916 Routine at 26916
-D 26916 Used by the routine at #R26566.
+C 26893,5 Mark bullet in flight
+C 26898,12 Player xpos plus half the width of the player ship is the bullet's xpos
+C 26910,4 Bullet ypos starts down here
+C 26914,2 Jump to draw bullet
+c 26916 Draw the player bullet.
+D 26916 The bullet graphic is cleared from the screen and drawn back in again. ??? Still not sure what the sub4 thing is.
+R 26916 Used by the routine at #R26566.
+@ 26916 label=draw_player_bullet
 C 26923,2 Mode clear
 C 26925,3 Clear sprite
+C 26928,3 Fetch player bullet xpos
+C 26931,6 ???
+C 26937,3 Set player bullet xpos
 N 26940 This entry point is used by the routine at #R26883.
 C 26943,1 Mode set
 C 26944,3 Draw sprite
-c 26947 Routine at 26947
+c 26947 Stop player bullet
+D 26947 Player bullet is cleared from screen and the flag indicating there's a bullet in flight is cleared.
 D 26947 Used by the routines at #R26225, #R26538 and #R26541.
+@ 26947 label=clear_player_bullet
 C 26954,2 Mode clear
 C 26956,3 Clear sprite
 N 26959 This entry point is used by the routine at #R26916.
-s 26964 Unused
+C 26959,4 Bullet no longer in flight
+s 26964 Temporary store for where the new ship should end up at the end of the scroll animation.
+@ 26964 label=_NEW_SHIP_TARGET_XPOS
 S 26964,1,1
-c 26965 Draw player ship and scroll it into position.
+c 26965 New player ship
+D 26965 Draw player ship and scroll it into position. Called with #R24638 and #R24639 holding screen location of new ship.
 D 26965 Used by the routine which draws lives remaining at the top, and when the a new life appears at the bottom after dying
 @ 26965 label=new_player_ship
-C 26965,2 Set by one of the subroutines, ???
 C 26968,5 Set up adjustment of -1, which means 1 pixel left
 C 26973,3 Player ship pos, X
-C 26981,3 Player ship pos, X
-C 26987,3 Sound burbler
-B 26990,3,3 Move player ship sound? Maybe new player ship sound?
+C 26976,3 Store the final xpos (where the scroll finishes)
+C 26979,2 Start 40 pixels right of final position
+C 26981,6 Set player ship xpos and draw the ship there. Returns with xpos pointed to by IX.
+M 26987,6 Sound burbler with move player ship sound
+B 26990,3,3
 N 26993 Sound burbler return point
+C 26993,3 Pick up xpos where we're moving the ship to
+C 26996,5 Are we there? Adjustment is still -1 so we keep going round until the ship is in place
 c 27005 Routine at 27005
 D 27005 Used by the routine at #R27030.
 s 27029 Unused
@@ -605,11 +659,14 @@ C 31051,3 Sound burbler
 B 31054,4,4 ???
 c 31064 Routine at 31064
 D 31064 Used by the routine at #R30857.
-c 31075 Routine at 31075
-D 31075 Used by the routine at #R24703.
+c 31075 Initialise draw aliens
+D 31075 This displays the bands of aliens - from the bottom upwards it's red, bleep, red, bleep, green, bleep, green, bleep, yellow.
+R 31075 Used by the routine at #R24703.
+@ 31075 label=init_draw_aliens
 C 31080,3 IX = 27327 + ( 'A' * 706 )
-C 31089,3 Sound burbler
-B 31092,2,2 ???
+C 31089,3 Sound burbler, row of aliens appearing
+B 31092
+N 31099 Sound burbler return point
 s 31107 Unused
 S 31107,12,12
 c 31119 Routine at 31119
@@ -625,7 +682,7 @@ R 31290 I:B first cy
 R 31290 I:C first cx
 R 31290 I:D Number of attributes to set
 R 31290 I:E INK colour
-R 31290 @label=set_attributes_xy_n
+@ 31290 label=set_attributes_xy_n
 C 31290,3 Find attribute address of cy,cx in BC
 C 31293,3 Clear INK in attribute cell
 C 31296,1 Merge in E
@@ -846,8 +903,8 @@ C 32048,2 12*C Ts delay
 C 32050,4 Toggle speaker bit
 b 32055 Data block at 32055
 B 32055,1,1
-t 32056 Message at 32056
-T 32056,3,3
+b 32056 Message at 32056
+B 32056,3,1
 c 32059 Routine at 32059
 D 32059 Used by the routines at #R25749 and #R31527.
 b 32112 Data block at 32112
