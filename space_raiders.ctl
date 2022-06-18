@@ -61,7 +61,8 @@ B 24611,1,1 Number of lives player has left
 @ 24613 label=_ALIENS_LANDED
 B 24612,3,1
 b 24615 Data block at 24615
-B 24615,23,5,8*2,2
+@ 24634 label=_COLL_CHECK_SOMETHING
+B 24615,23,5,8,6,1*2,2
 @ 24638 label=_PLAYER_XPOS
 B 24638,1,1 Player ship pos, X
 @ 24639 label=_PLAYER_YPOS
@@ -95,6 +96,10 @@ C 24710,3 ???
 C 24713,3 Draw lives as ships on top row
 N 24716 This entry point is used by the routine at #R24919. Top of game loop?
 N 24737 This entry point is used by the routine at #R24868.
+C 24737,3 Consider awarding extra life
+C 24740,3 ???
+C 24743,3 Read keyboard, deal with ship and bullet repositioning
+C 24746,3 Check if bullet has hit alien, kill alien if so
 C 24761,3 Lives remaining
 C 24777,3 Lives remaining
 C 24784,7 Have the aliens landed? Game over if they have.
@@ -321,22 +326,40 @@ N 26023 This entry point is used by the routine at #R25853.
 C 26028,2 Mode clear
 C 26030,3 Clear sprite
 N 26033 This entry point is used by the routine at #R25853.
-c 26038 Routine at 26038
-D 26038 Used by the routine at #R24703.
+c 26038 Alien hit?
+D 26038 Check if there's a bullet in flight. If not return immediately. If there is, call the collision detection routine.
+R 26038 Used by the routine at #R24703.
+@ 26038 label=is_alien_hit
 C 26038,5 Return if no bullet in flight
-c 26049 Routine at 26049
+c 26049 Bullet and alien collision check, Y axis
+D 26049 Check whether the bullet's Y axis position matches an alien's location. If not, there's no collision. If so, go and check the bullet's X axis.
 D 26049 Used by the routine at #R26038.
+@ 26049 label=bullet_alien_coll_yaxis
+C 26049,3 Pick up bullet Y pos
+C 26052,7 Divide by 8 to convert bullet pixel ypos to cpos
 C 26068,3 IX = 27327 + ( 'A' * 706 )
+C 26074,3 IX+1 must be alien cypos
+C 26086,1 No collision on the Y axis
+N 26087 Jump here if there's a collision on the Y axis
+C 26087,3 Pick up bullet X pos
+C 26090,3 Do X axis collision check
+C 26093,1 Return if no collision
+C 26094,3 Collision detected, kill the alien
 b 26097 Data block at 26097
-B 26097,13,8,5
-t 26110 Message at 26110
-T 26110,3,3
-b 26113 Data block at 26113
-B 26113,41,8*5,1
-c 26154 Routine at 26154
+B 26097,9,8,1
+N 26106 UDGs, interleaved. It's a 16x12 image, so 0th row bytes 0 and 1, then 1st row bytes 0 and 1, etc. I gave up trying to get SkoolKit to render it.
+@ 26106 label=_EXPLOSION_UDG
+B 26106,48,2
+c 26154 Bullet and alien collision check, X axis
+D 26154 Check whether the bullet's X axis position matches an alien's location. We already know that the Y axis matches one, so if this does too we have a hit.
 D 26154 Used by the routines at #R25749 and #R26049.
-c 26225 Routine at 26225
+R 26154 I:IX Pointer to alien structure which has y-axis collision
+R 26154 O:A 0 for no collision, 1 for collision
+@ 26154 label=bullet_alien_coll_xaxis
+c 26225 Alien hit
 D 26225 Used by the routine at #R26049.
+R 26225 I:IX Alien structure, I think
+@ 26225 label=alien_hit
 C 26246,3 Sound burbler
 B 26249,9,8,1 Alien hit sound
 N 26258 Sound burbler return point
@@ -348,15 +371,33 @@ C 26298,3 Sound burbler
 B 26301,9,8,1 Last alien hit sound
 N 26310 Sound burbler return point
 C 26315,3 Clear bottom row
-c 26320 Routine at 26320
+c 26320 Alien hit, zero something
+D 26320 Starting with the alien structure for the alien which has been hit, zero bytes 2 and 3, then move on 22 bytes and repeat 32 times.
+D 26320 I've no idea why as yet
 D 26320 Used by the routine at #R26225.
-c 26337 Routine at 26337
+R 26320 I:IX Hit alien structure
+@ 26320 label=alien_hit_zero_some_bytes
+c 26337 Draw alien explosion
+D 26337 An alien has been hit. Replace its graphic with the explosion graphic.
 D 26337 Used by the routine at #R26225.
+@ 26337 label=draw_alien_explosion
+C 26337,4 Bullet cy,cx, that's the explosion place
 C 26341,3 cxy2saddr: DE = screen address of char C,B
+C 26347,3 Call down to draw the top 2 chars of explosion
+C 26350,4 Bullet cy,cx, that's the explosion place
+C 26354,1 inc cy, ready for bottom 2 chars of explosion
+N 26355 Bit of an odd way of moving the graphics bytes into the screen. It uses LDI to do 2 bytes, then restores the registers to put back half of the effects of that instruction.
 N 26355 This entry point is used by the routine at #R26225.
 C 26355,3 cxy2saddr: DE = screen address of char C,B
+C 26361,2 8 scans
+C 26363,2 Graphic to screen, left side
+C 26365,2 Graphic to screen, right side
+C 26367,2 Back up 2 screen bytes
+C 26369,2 Restore BC
+C 26371,1 Go down one screen row
 c 26375 Routine at 26375
 D 26375 Used by the routine at #R26225.
+C 26419,3 This is used by bullet collision
 b 26459 Data block at 26459
 B 26459,5,5
 c 26464 Routine at 26464
@@ -375,11 +416,13 @@ B 26531,7,7 Hit alien bullet sound
 C 26538,3 Sound burbler return point
 c 26541 Routine at 26541
 D 26541 Used by the routine at #R26490.
-c 26566 Fire player bullet
+c 26566 Handle player inputs.
+D 26566 Call the read the keyboard routine, which updates the player's ship's direction, and whether they've hit fire. Move the player's ship based on input. If there's a bullet in flight reposition and redraw it. That ends the routine because there's only one bullet allowed. If no bullet is in flight check to see if fire was pressed. If so, start a new bullet on its way.
 D 26566 Used by the routine at #R24703.
-@ 26566 label=fire_player_bullet
+@ 26566 label=handle_inputs
 C 26566,3 Read keyboard
-C 26572,7 Return if bullet in flight
+C 26569,3 Move and redraw player
+C 26572,7 If bullet is in flight jump off to reposition and redraw it.
 C 26579,5 Has fire been pressed? Return if not
 C 26584,3 Handle firing of bullet
 c 26587 Keypress detection
@@ -649,10 +692,9 @@ c 30857 Routine at 30857
 D 30857 Used by the routine at #R24795.
 C 30879,3 IX = 27327 + ( 'A' * 706 )
 C 30894,3 Sound burbler
-B 30897,3,3 Don't know what this is
-C 30903,3 ; Not sure where the sound return point is
+B 30897,3,3 Aliens marching sound
 c 30995 Move aliens down
-D 30995 Aliens have got to one side of the screen, move them down row by row.
+D 30995 Aliens have got to one side of the screen, move them down row by row. If they've got to the level of the barriers, remove the barriers. If they've got to the player's level then they've landed and the game will be flagged as over (actioned next game loop).
 D 30995 Used by the routine at #R30857.
 @ 30995 label=move_aliens_down
 C 30995,3 Sound burbler
@@ -678,9 +720,18 @@ C 31089,3 Sound burbler, row of aliens appearing
 B 31092,7,7
 N 31099 Sound burbler return point
 s 31107 Unused
-S 31107,12,12
-c 31119 Routine at 31119
+@ 31107 label=_TEMP_IX_STASH
+S 31107,2,2
+s 31109 Unused
+@ 31109 label=_TEMP_BC_STASH
+S 31109,14,8,6
+c 31119 Something to do with aliens
+D 31119 Routine at 31119
 D 31119 Used by the routines at #R26154, #R30857, #R30995 and #R31075.
+@ 31119 label=aliens_something
+C 31119,4 Stash IX
+C 31123,3 Alien cypos
+C 31126,3 Alien cxpos
 c 31198 Routine at 31198
 D 31198 Used by the routines at #R30995 and #R31075.
 C 31220,3 cxy2saddr: DE = screen address of char C,B

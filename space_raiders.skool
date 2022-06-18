@@ -1814,8 +1814,8 @@ c26020 LD A,(IX+1)   ;
 
 ; Alien hit?
 ;
-; Check if there's a bullet in flight. If not return immediately.
-; If there is, call the collision detection routine.
+; Check if there's a bullet in flight. If not return immediately. If there is,
+; call the collision detection routine.
 ;
 ; Used by the routine at #R24703.
 @label=is_alien_hit
@@ -1827,17 +1827,16 @@ c26038 LD A,(24641)  ; {Return if no bullet in flight
 
 ; Bullet and alien collision check, Y axis
 ;
-; Check whether the bullet's Y axis position matches an
-; alien's location. If not, there's no collision. If so,
-; go and check the bullet's X axis.
-;.
+; Check whether the bullet's Y axis position matches an alien's location. If
+; not, there's no collision. If so, go and check the bullet's X axis.
+; .
 ; Used by the routine at #R26038.
 @label=bullet_alien_coll_yaxis
 c26049 LD A,(24643)  ; Pick up bullet Y pos
- 26052 SRL A         ; {Divide by 8 to convert
- 26054 SRL A         ; bullet pixel ypos to cpos
- 26056 SRL A         ; 
- 26058 INC A         ;}
+ 26052 SRL A         ; {Divide by 8 to convert bullet pixel ypos to cpos
+ 26054 SRL A         ;
+ 26056 SRL A         ;
+ 26058 INC A         ; }
  26059 LD (26101),A  ;
  26062 LD A,(24634)  ;
 *26065 LD (26099),A  ;
@@ -1856,32 +1855,41 @@ c26049 LD A,(24643)  ; Pick up bullet Y pos
  26094 JP 26225      ; Collision detected, kill the alien
 
 ; Data block at 26097
-b26097 DEFB 0,0
-@label=_COLL_CHECK_TEMP
- 26099 DEFB 0
-@label=_BULLET_CX
- 26100 DEFB 0
-@label=_BULLET_CY
- 26101 DEFB 0
- 26102 DEFB 0,0,0
- 26105 DEFB 0,16,128,9,16
-
-; Message at 26110
-t26110 DEFM "I &"
-
-; Data block at 26113
-b26113 DEFB 64,16,128,0,0,16,128,102
- 26121 DEFB 96,137,48,9,128,16,128,0
- 26129 DEFB 0,0,0,0,0,0,0,0
- 26137 DEFB 0,0,0,0,0,0,0,0
- 26145 DEFB 0,0,0,0,0,0,0,0
- 26153 DEFB 0
+b26097 DEFB 0,0,0,0,0,0,0,0
+ 26105 DEFB 0
+; UDGs, interleaved. It's a 16x16 image, so 0th row bytes 0 and 1, then 1st row
+; bytes 0 and 1, etc. The bottom 5 scans are empty. I gave up trying to get
+; SkoolKit to render it.
+@label=_EXPLOSION_UDG
+ 26106 DEFB 16,128
+ 26108 DEFB 9,16
+ 26110 DEFB 73,32
+ 26112 DEFB 38,64
+ 26114 DEFB 16,128
+ 26116 DEFB 0,0
+ 26118 DEFB 16,128
+ 26120 DEFB 102,96
+ 26122 DEFB 137,48
+ 26124 DEFB 9,128
+ 26126 DEFB 16,128
+ 26128 DEFB 0,0
+ 26130 DEFB 0,0
+ 26132 DEFB 0,0
+ 26134 DEFB 0,0
+ 26136 DEFB 0,0
+ 26138 DEFB 0,0
+ 26140 DEFB 0,0
+ 26142 DEFB 0,0
+ 26144 DEFB 0,0
+ 26146 DEFB 0,0
+ 26148 DEFB 0,0
+ 26150 DEFB 0,0
+ 26152 DEFB 0,0
 
 ; Bullet and alien collision check, X axis
 ;
-; Check whether the bullet's X axis position matches an
-; alien's location. We already know that the Y axis matches
-; one, so if this does too we have a hit.
+; Check whether the bullet's X axis position matches an alien's location. We
+; already know that the Y axis matches one, so if this does too we have a hit.
 ; .
 ; Used by the routines at #R25749 and #R26049.
 ;
@@ -1964,12 +1972,11 @@ c26225 CALL 26320                    ;
 
 ; Alien hit, zero something
 ;
-; Starting with the alien structure for the alien which has
-; been hit, zero bytes 2 and 3, then move on 22 bytes and
-; repeat 32 times.
-;.
+; Starting with the alien structure for the alien which has been hit, zero
+; bytes 2 and 3, then move on 22 bytes and repeat 32 times.
+; .
 ; I've no idea why as yet
-;.
+; .
 ; Used by the routine at #R26225.
 ;
 ; I:IX Hit alien structure
@@ -1985,9 +1992,8 @@ c26320 LD B,32       ;
 
 ; Draw alien explosion
 ;
-; An alien has been hit. Replace its graphic with the explosion
-; graphic.
-;.
+; An alien has been hit. Replace its graphic with the explosion graphic.
+; .
 ; Used by the routine at #R26225.
 @label=draw_alien_explosion
 c26337 LD BC,(26100) ; Bullet cy,cx, that's the explosion place
@@ -1996,10 +2002,10 @@ c26337 LD BC,(26100) ; Bullet cy,cx, that's the explosion place
  26347 CALL 26361    ; Call down to draw the top 2 chars of explosion
  26350 LD BC,(26100) ; Bullet cy,cx, that's the explosion place
  26354 INC B         ; inc cy, ready for bottom 2 chars of explosion
-; Bit of an odd way of moving the graphics bytes into the
-; screen. It uses LDI to do 2 bytes, then restores the
-; registers to put back half of the effects of that instruction.
-;.
+; Bit of an odd way of moving the graphics bytes into the screen. It uses LDI
+; to do 2 bytes, then restores the registers to put back half of the effects of
+; that instruction.
+; .
 ; This entry point is used by the routine at #R26225.
  26355 CALL 32254    ; cxy2saddr: DE = screen address of char C,B
  26358 LD HL,(26104) ;
@@ -2009,7 +2015,7 @@ c26337 LD BC,(26100) ; Bullet cy,cx, that's the explosion place
  26367 DEC DE        ; {Back up 2 screen bytes
  26368 DEC DE        ; }
  26369 INC BC        ; {Restore BC
- 26370 INC BC        ;}
+ 26370 INC BC        ; }
  26371 INC D         ; Go down one screen row
  26372 DJNZ 26363    ;
  26374 RET           ;
@@ -2134,19 +2140,18 @@ c26541 INC IX        ;
 
 ; Handle player inputs.
 ;
-; Call the read the keyboard routine, which updates the player's
-; ship's direction, and whether they've hit fire. Move the 
-; player's ship based on input. If there's a bullet in flight
-; reposition and redraw it. That ends the routine because there's
-; only one bullet allowed. If no bullet is in flight check to see
-; if fire was pressed. If so, start a new bullet on its way.
-;.
+; Call the read the keyboard routine, which updates the player's ship's
+; direction, and whether they've hit fire. Move the player's ship based on
+; input. If there's a bullet in flight reposition and redraw it. That ends the
+; routine because there's only one bullet allowed. If no bullet is in flight
+; check to see if fire was pressed. If so, start a new bullet on its way.
+; .
 ; Used by the routine at #R24703.
 @label=handle_inputs
 c26566 CALL 26587    ; Read keyboard
  26569 CALL 26675    ; Move and redraw player
- 26572 LD A,(24641)  ; {If bullet is in flight jump off
- 26575 OR A          ;  to reposition and redraw it.
+ 26572 LD A,(24641)  ; {If bullet is in flight jump off to reposition and
+ 26575 OR A          ; redraw it.
  26576 JP NZ,26916   ; }
  26579 LD A,(24652)  ; {Has fire been pressed? Return if not
  26582 OR A          ;
@@ -3155,10 +3160,10 @@ c30857 LD A,(24632)  ;
 
 ; Move aliens down
 ;
-; Aliens have got to one side of the screen, move them down row by row.
-; If they've got to the level of the barriers, remove the barriers.
-; If they've got to the player's level then they've landed and the
-; game will be flagged as over (actioned next game loop).
+; Aliens have got to one side of the screen, move them down row by row. If
+; they've got to the level of the barriers, remove the barriers. If they've got
+; to the player's level then they've landed and the game will be flagged as
+; over (actioned next game loop).
 ; .
 ; Used by the routine at #R30857.
 @label=move_aliens_down
@@ -3218,21 +3223,24 @@ c31075 LD A,4                       ;
  31103 JP P,31077                   ;
  31106 RET                          ;
 
+; Unused
 @label=_TEMP_IX_STASH
 s31107 DEFS 2
+
+; Unused
 @label=_TEMP_BC_STASH
-s31109 DEFS 2
 s31109 DEFS 8
+ 31117 DEFS 6
 
 ; Something to do with aliens
 ;
 ; Routine at 31119
-;.
+; .
 ; Used by the routines at #R26154, #R30857, #R30995 and #R31075.
 @label=aliens_something
 c31119 LD (31107),IX ; Stash IX
- 31123 LD C,(IX+0)   ; I think this is alien cypos
- 31126 LD B,(IX+1)   ; I think this is alien cxpos
+ 31123 LD C,(IX+0)   ; Alien cypos
+ 31126 LD B,(IX+1)   ; Alien cxpos
  31129 LD (31109),BC ;
  31133 LD A,(24636)  ;
  31136 INC A         ;
