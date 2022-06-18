@@ -649,11 +649,12 @@ c 30857 Routine at 30857
 D 30857 Used by the routine at #R24795.
 C 30879,3 IX = 27327 + ( 'A' * 706 )
 C 30894,3 Sound burbler
-B 30897,6,6 Don't know what this is
+B 30897,3,3 Don't know what this is
 C 30903,3 ; Not sure where the sound return point is
 c 30995 Move aliens down
 D 30995 Aliens have got to one side of the screen, move them down row by row.
 D 30995 Used by the routine at #R30857.
+@ 30995 label=move_aliens_down
 C 30995,3 Sound burbler
 B 30998,3,3
 N 31001 Sound burbler return point
@@ -667,8 +668,7 @@ N 31030 This entry point is used by the routine at #R31064.
 C 31046,5 Flag that the aliens have landed.
 C 31051,3 Sound burbler
 B 31054,9,3
-C 31063
-D 31064 Used by the routine at #R30857.
+N 31064 This entry point is used by the routine at #R30857.
 c 31075 Initialise draw aliens
 D 31075 This displays the bands of aliens - from the bottom upwards it's red, bleep, red, bleep, green, bleep, green, bleep, yellow.
 R 31075 Used by the routine at #R24703.

@@ -1074,7 +1074,10 @@ b24605 DEFB 5        ; Speed factor, doesn't change
 ; Data block at 24615
 b24615 DEFB 0,114,121,230,128
  24620 DEFB 194,28,115,58,246,140,230,128
- 24628 DEFB 202,39,115,205,0,0,0,0
+ 24628 DEFB 202,39,115,205,0,0
+@label=_COLL_CHECK_SOMETHING
+ 24634 DEFB 0
+ 24635 DEFB 0
  24636 DEFB 0,0
 @label=_PLAYER_XPOS
  24638 DEFB 0                             ; Player ship pos, X
@@ -1134,10 +1137,10 @@ c24703 DI            ; start here
  24731 CALL 31436    ;
  24734 CALL 31075    ;
 ; This entry point is used by the routine at #R24868.
-*24737 CALL 25105    ;
- 24740 CALL 25094    ;
- 24743 CALL 26566    ;
- 24746 CALL 26038    ;
+*24737 CALL 25105    ; Consider awarding extra life
+ 24740 CALL 25094    ; ???
+ 24743 CALL 26566    ; Read keyboard, deal with ship and bullet repositioning
+ 24746 CALL 26038    ; Check if bullet has hit alien, kill alien if so
  24749 LD A,(24615)  ;
  24752 OR A          ;
  24753 JP Z,24919    ;
@@ -1809,41 +1812,58 @@ c26020 LD A,(IX+1)   ;
 *26033 LD (IX+1),0   ;
  26037 RET           ;
 
-; Routine at 26038
+; Alien hit?
+;
+; Check if there's a bullet in flight. If not return immediately.
+; If there is, call the collision detection routine.
 ;
 ; Used by the routine at #R24703.
+@label=is_alien_hit
 c26038 LD A,(24641)  ; {Return if no bullet in flight
  26041 OR A          ;
  26042 RET Z         ; }
  26043 CALL 26049    ;
  26046 JP 26490      ;
 
-; Routine at 26049
+; Bullet and alien collision check, Y axis
 ;
+; Check whether the bullet's Y axis position matches an
+; alien's location. If not, there's no collision. If so,
+; go and check the bullet's X axis.
+;.
 ; Used by the routine at #R26038.
-c26049 LD A,(24643)  ;
- 26052 SRL A         ;
- 26054 SRL A         ;
- 26056 SRL A         ;
- 26058 INC A         ;
+@label=bullet_alien_coll_yaxis
+c26049 LD A,(24643)  ; Pick up bullet Y pos
+ 26052 SRL A         ; {Divide by 8 to convert
+ 26054 SRL A         ; bullet pixel ypos to cpos
+ 26056 SRL A         ; 
+ 26058 INC A         ;}
  26059 LD (26101),A  ;
  26062 LD A,(24634)  ;
 *26065 LD (26099),A  ;
  26068 CALL 27097    ; IX = 27327 + ( 'A' * 706 )
  26071 LD A,(26101)  ;
- 26074 CP (IX+1)     ;
+ 26074 CP (IX+1)     ; IX+1 must be alien cypos
  26077 JR Z,26087    ;
  26079 LD A,(26099)  ;
  26082 DEC A         ;
  26083 JP P,26065    ;
- 26086 RET           ;
-*26087 LD A,(24642)  ;
- 26090 CALL 26154    ;
- 26093 RET Z         ;
- 26094 JP 26225      ;
+ 26086 RET           ; No collision on the Y axis
+; Jump here if there's a collision on the Y axis
+*26087 LD A,(24642)  ; Pick up bullet X pos
+ 26090 CALL 26154    ; Do X axis collision check
+ 26093 RET Z         ; Return if no collision
+ 26094 JP 26225      ; Collision detected, kill the alien
 
 ; Data block at 26097
-b26097 DEFB 0,0,0,0,0,0,0,0
+b26097 DEFB 0,0
+@label=_COLL_CHECK_TEMP
+ 26099 DEFB 0
+@label=_BULLET_CX
+ 26100 DEFB 0
+@label=_BULLET_CY
+ 26101 DEFB 0
+ 26102 DEFB 0,0,0
  26105 DEFB 0,16,128,9,16
 
 ; Message at 26110
@@ -1857,9 +1877,17 @@ b26113 DEFB 64,16,128,0,0,16,128,102
  26145 DEFB 0,0,0,0,0,0,0,0
  26153 DEFB 0
 
-; Routine at 26154
+; Bullet and alien collision check, X axis
 ;
+; Check whether the bullet's X axis position matches an
+; alien's location. We already know that the Y axis matches
+; one, so if this does too we have a hit.
+; .
 ; Used by the routines at #R25749 and #R26049.
+;
+; I:IX Pointer to alien structure which has y-axis collision
+; O:A 0 for no collision, 1 for collision
+@label=bullet_alien_coll_xaxis
 c26154 LD (26097),A  ;
  26157 CALL 31119    ;
  26160 LD IX,31107   ;
@@ -1892,9 +1920,12 @@ c26154 LD (26097),A  ;
 *26223 XOR A         ;
  26224 RET           ;
 
-; Routine at 26225
+; Alien hit
 ;
 ; Used by the routine at #R26049.
+;
+; I:IX Alien structure, I think
+@label=alien_hit
 c26225 CALL 26320                    ;
  26228 LD HL,26106                   ;
  26231 LD (26102),HL                 ;
@@ -1931,9 +1962,18 @@ c26225 CALL 26320                    ;
  26318 POP HL                        ;
  26319 RET                           ;
 
-; Routine at 26320
+; Alien hit, zero something
 ;
+; Starting with the alien structure for the alien which has
+; been hit, zero bytes 2 and 3, then move on 22 bytes and
+; repeat 32 times.
+;.
+; I've no idea why as yet
+;.
 ; Used by the routine at #R26225.
+;
+; I:IX Hit alien structure
+@label=alien_hit_zero_some_bytes
 c26320 LD B,32       ;
  26322 LD DE,22      ;
  26325 XOR A         ;
@@ -1943,26 +1983,34 @@ c26320 LD B,32       ;
  26334 DJNZ 26326    ;
  26336 RET           ;
 
-; Routine at 26337
+; Draw alien explosion
 ;
+; An alien has been hit. Replace its graphic with the explosion
+; graphic.
+;.
 ; Used by the routine at #R26225.
-c26337 LD BC,(26100) ;
+@label=draw_alien_explosion
+c26337 LD BC,(26100) ; Bullet cy,cx, that's the explosion place
  26341 CALL 32254    ; cxy2saddr: DE = screen address of char C,B
  26344 LD HL,(26102) ;
- 26347 CALL 26361    ;
- 26350 LD BC,(26100) ;
- 26354 INC B         ;
+ 26347 CALL 26361    ; Call down to draw the top 2 chars of explosion
+ 26350 LD BC,(26100) ; Bullet cy,cx, that's the explosion place
+ 26354 INC B         ; inc cy, ready for bottom 2 chars of explosion
+; Bit of an odd way of moving the graphics bytes into the
+; screen. It uses LDI to do 2 bytes, then restores the
+; registers to put back half of the effects of that instruction.
+;.
 ; This entry point is used by the routine at #R26225.
  26355 CALL 32254    ; cxy2saddr: DE = screen address of char C,B
  26358 LD HL,(26104) ;
-*26361 LD B,8        ;
-*26363 LDI           ;
- 26365 LDI           ;
- 26367 DEC DE        ;
- 26368 DEC DE        ;
- 26369 INC BC        ;
- 26370 INC BC        ;
- 26371 INC D         ;
+*26361 LD B,8        ; 8 scans
+*26363 LDI           ; Graphic to screen, left side
+ 26365 LDI           ; Graphic to screen, right side
+ 26367 DEC DE        ; {Back up 2 screen bytes
+ 26368 DEC DE        ; }
+ 26369 INC BC        ; {Restore BC
+ 26370 INC BC        ;}
+ 26371 INC D         ; Go down one screen row
  26372 DJNZ 26363    ;
  26374 RET           ;
 
@@ -1990,7 +2038,7 @@ c26375 LD HL,24616   ;
  26415 OR (HL)       ;
  26416 JR Z,26413    ;
  26418 LD A,B        ;
- 26419 LD (24634),A  ;
+ 26419 LD (24634),A  ; This is used by bullet collision
  26422 LD B,255      ;
  26424 LD HL,24621   ;
  26427 XOR A         ;
@@ -2084,14 +2132,21 @@ c26541 INC IX        ;
  26562 RET Z         ;
  26563 JP 26947      ;
 
-; Fire player bullet
+; Handle player inputs.
 ;
+; Call the read the keyboard routine, which updates the player's
+; ship's direction, and whether they've hit fire. Move the 
+; player's ship based on input. If there's a bullet in flight
+; reposition and redraw it. That ends the routine because there's
+; only one bullet allowed. If no bullet is in flight check to see
+; if fire was pressed. If so, start a new bullet on its way.
+;.
 ; Used by the routine at #R24703.
-@label=fire_player_bullet
+@label=handle_inputs
 c26566 CALL 26587    ; Read keyboard
- 26569 CALL 26675    ;
- 26572 LD A,(24641)  ; {Return if bullet in flight
- 26575 OR A          ;
+ 26569 CALL 26675    ; Move and redraw player
+ 26572 LD A,(24641)  ; {If bullet is in flight jump off
+ 26575 OR A          ;  to reposition and redraw it.
  26576 JP NZ,26916   ; }
  26579 LD A,(24652)  ; {Has fire been pressed? Return if not
  26582 OR A          ;
@@ -3034,74 +3089,79 @@ b30760 DEFB 140,54,0,33,61,140,195,139
 ; Routine at 30857
 ;
 ; Used by the routine at #R24795.
-c30857 LD A,(24632)              ;
- 30860 LD B,A                    ;
- 30861 LD A,(24634)              ;
- 30864 CP B                      ;
- 30865 JR NC,30888               ;
- 30867 LD (24632),A              ;
- 30870 LD A,(24633)              ;
- 30873 OR A                      ;
- 30874 JR NZ,30888               ;
- 30876 LD A,(24632)              ;
- 30879 CALL 27097                ; IX = 27327 + ( 'A' * 706 )
- 30882 CALL 31119                ;
- 30885 CALL 30959                ;
-*30888 LD A,(24632)              ;
- 30891 OR A                      ;
- 30892 JR NZ,30900               ;
- 30894 CALL 31987                ; Sound burbler
- 30897 DEFB 10,250,0,205,217,105 ; Don't know what this is
- 30903 CALL 31119                ; ; Not sure where the sound return point is
- 30906 LD A,(24633)              ;
- 30909 OR A                      ;
- 30910 JR Z,30938                ;
- 30912 CALL 30995                ;
- 30915 LD A,(24632)              ;
- 30918 OR A                      ;
- 30919 JR NZ,30933               ;
- 30921 LD (24633),A              ;
- 30924 LD A,(24635)              ;
- 30927 NEG                       ;
- 30929 LD (24635),A              ;
- 30932 RET                       ;
-*30933 DEC A                     ;
- 30934 LD (24632),A              ;
- 30937 RET                       ;
-*30938 CALL 31064                ;
- 30941 LD A,(24632)              ;
- 30944 LD B,A                    ;
- 30945 LD A,(24634)              ;
- 30948 CP B                      ;
- 30949 JR Z,30959                ;
- 30951 LD A,(24632)              ;
- 30954 INC A                     ;
- 30955 LD (24632),A              ;
- 30958 RET                       ;
-*30959 LD A,(24635)              ;
- 30962 CP 1                      ;
- 30964 JR Z,30978                ;
- 30966 LD A,(31111)              ;
- 30969 OR A                      ;
- 30970 JR NZ,30990               ;
-*30972 LD A,1                    ;
- 30974 LD (24633),A              ;
- 30977 RET                       ;
-*30978 LD A,(31111)              ;
- 30981 LD B,A                    ;
- 30982 LD A,(31112)              ;
- 30985 ADD A,B                   ;
- 30986 CP 32                     ;
- 30988 JR Z,30972                ;
-*30990 XOR A                     ;
- 30991 LD (24632),A              ;
- 30994 RET                       ;
+c30857 LD A,(24632)  ;
+ 30860 LD B,A        ;
+ 30861 LD A,(24634)  ;
+ 30864 CP B          ;
+ 30865 JR NC,30888   ;
+ 30867 LD (24632),A  ;
+ 30870 LD A,(24633)  ;
+ 30873 OR A          ;
+ 30874 JR NZ,30888   ;
+ 30876 LD A,(24632)  ;
+ 30879 CALL 27097    ; IX = 27327 + ( 'A' * 706 )
+ 30882 CALL 31119    ;
+ 30885 CALL 30959    ;
+*30888 LD A,(24632)  ;
+ 30891 OR A          ;
+ 30892 JR NZ,30900   ;
+ 30894 CALL 31987    ; Sound burbler
+ 30897 DEFB 10,250,0 ; Aliens marching sound
+*30900 CALL 27097    ;
+ 30903 CALL 31119    ;
+ 30906 LD A,(24633)  ;
+ 30909 OR A          ;
+ 30910 JR Z,30938    ;
+ 30912 CALL 30995    ;
+ 30915 LD A,(24632)  ;
+ 30918 OR A          ;
+ 30919 JR NZ,30933   ;
+ 30921 LD (24633),A  ;
+ 30924 LD A,(24635)  ;
+ 30927 NEG           ;
+ 30929 LD (24635),A  ;
+ 30932 RET           ;
+*30933 DEC A         ;
+ 30934 LD (24632),A  ;
+ 30937 RET           ;
+*30938 CALL 31064    ;
+ 30941 LD A,(24632)  ;
+ 30944 LD B,A        ;
+ 30945 LD A,(24634)  ;
+ 30948 CP B          ;
+ 30949 JR Z,30959    ;
+ 30951 LD A,(24632)  ;
+ 30954 INC A         ;
+ 30955 LD (24632),A  ;
+ 30958 RET           ;
+*30959 LD A,(24635)  ;
+ 30962 CP 1          ;
+ 30964 JR Z,30978    ;
+ 30966 LD A,(31111)  ;
+ 30969 OR A          ;
+ 30970 JR NZ,30990   ;
+*30972 LD A,1        ;
+ 30974 LD (24633),A  ;
+ 30977 RET           ;
+*30978 LD A,(31111)  ;
+ 30981 LD B,A        ;
+ 30982 LD A,(31112)  ;
+ 30985 ADD A,B       ;
+ 30986 CP 32         ;
+ 30988 JR Z,30972    ;
+*30990 XOR A         ;
+ 30991 LD (24632),A  ;
+ 30994 RET           ;
 
 ; Move aliens down
 ;
 ; Aliens have got to one side of the screen, move them down row by row.
+; If they've got to the level of the barriers, remove the barriers.
+; If they've got to the player's level then they've landed and the
+; game will be flagged as over (actioned next game loop).
 ; .
 ; Used by the routine at #R30857.
+@label=move_aliens_down
 c30995 CALL 31987       ; Sound burbler
  30998 DEFB 8,250,0     ;
 ; Sound burbler return point
@@ -3158,15 +3218,21 @@ c31075 LD A,4                       ;
  31103 JP P,31077                   ;
  31106 RET                          ;
 
-; Unused
-s31107 DEFS 12
+@label=_TEMP_IX_STASH
+s31107 DEFS 2
+@label=_TEMP_BC_STASH
+s31109 DEFS 2
+s31109 DEFS 8
 
-; Routine at 31119
+; Something to do with aliens
 ;
+; Routine at 31119
+;.
 ; Used by the routines at #R26154, #R30857, #R30995 and #R31075.
-c31119 LD (31107),IX ;
- 31123 LD C,(IX+0)   ;
- 31126 LD B,(IX+1)   ;
+@label=aliens_something
+c31119 LD (31107),IX ; Stash IX
+ 31123 LD C,(IX+0)   ; I think this is alien cypos
+ 31126 LD B,(IX+1)   ; I think this is alien cxpos
  31129 LD (31109),BC ;
  31133 LD A,(24636)  ;
  31136 INC A         ;
