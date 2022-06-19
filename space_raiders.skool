@@ -1048,8 +1048,10 @@ b24588 DEFB 0,128,237,176,201
 ; This one is the colour for the spaceship row
 @label=SCREEN_ATT_MAGENTA_ON_BLACK
  24600 DEFB 3
- 24601 DEFB 0,0,0
- 24604 DEFB 0
+ 24601 DEFB 0,0
+; Current score divided by 10. So 20 if the score is 200.
+@label=_CURRENT_SCORE
+ 24603 DEFW 0
 
 ; Game runtime data
 @label=_GAME_RUNTIME_DATA
@@ -1855,12 +1857,24 @@ c26049 LD A,(24643)  ; Pick up bullet Y pos
  26094 JP 26225      ; Collision detected, kill the alien
 
 ; Data block at 26097
-b26097 DEFB 0,0,0,0,0,0,0,0
- 26105 DEFB 0
-; UDGs, interleaved. It's a 16x16 image, so 0th row bytes 0 and 1, then 1st row
+b26097 DEFB 0,0
+; This holds the score value of a hit alien divided by 10.
+; So a green alien, worth 20, would put 2 in here.
+@label=_HIT_ALIEN_ROW
+ 26099 DEFB 0
+ 26100 DEFB 0,0
+; Address of top row of explosion graphic to be drawn is placed here.
+; It'll be the UDG_TOP to draw it and UDG_CLEAR to clear it
+@label=_EXPLOSION_GFX_TOP
+ 26102 DEFB 0,0
+; Address of bottom row of explosion graphic to be drawn is placed here
+; It'll be the UDG_TOP to draw it and UDG_CLEAR to clear it
+@label=_EXPLOSION_GFX_BOTTOM
+ 26104 DEFB 0,0
+; UDGs, interleaved. It's a 16x11 image, so 0th row bytes 0 and 1, then 1st row
 ; bytes 0 and 1, etc. The bottom 5 scans are empty. I gave up trying to get
 ; SkoolKit to render it.
-@label=_EXPLOSION_UDG
+@label=_EXPLOSION_UDG_TOP
  26106 DEFB 16,128
  26108 DEFB 9,16
  26110 DEFB 73,32
@@ -1869,6 +1883,7 @@ b26097 DEFB 0,0,0,0,0,0,0,0
  26116 DEFB 0,0
  26118 DEFB 16,128
  26120 DEFB 102,96
+@label=_EXPLOSION_UDG_BOTTOM
  26122 DEFB 137,48
  26124 DEFB 9,128
  26126 DEFB 16,128
@@ -1877,6 +1892,7 @@ b26097 DEFB 0,0,0,0,0,0,0,0
  26132 DEFB 0,0
  26134 DEFB 0,0
  26136 DEFB 0,0
+@label=_EXPLOSION_UDG_CLEAR
  26138 DEFB 0,0
  26140 DEFB 0,0
  26142 DEFB 0,0
@@ -1930,15 +1946,20 @@ c26154 LD (26097),A  ;
 
 ; Alien hit
 ;
+; Call when the player bullet hits an alien. The alien explosion is drawn
+; where the alien is, the blurbler is called, then the explosion is cleared.
+; The game freezes while the explosion is on screen and the sound is playing,
+; but you don't notice it.
+;.
 ; Used by the routine at #R26049.
 ;
 ; I:IX Alien structure, I think
 @label=alien_hit
 c26225 CALL 26320                    ;
- 26228 LD HL,26106                   ;
- 26231 LD (26102),HL                 ;
- 26234 LD HL,26122                   ;
- 26237 LD (26104),HL                 ;
+ 26228 LD HL,26106                   ; {Top char row of explosion graphic
+ 26231 LD (26102),HL                 ; }
+ 26234 LD HL,26122                   ; {Bottom char row of explsion graphic
+ 26237 LD (26104),HL                 ; }
  26240 CALL 26337                    ;
  26243 CALL 26947                    ;
  26246 CALL 31987                    ; Sound burbler
@@ -1998,7 +2019,7 @@ c26320 LD B,32       ;
 @label=draw_alien_explosion
 c26337 LD BC,(26100) ; Bullet cy,cx, that's the explosion place
  26341 CALL 32254    ; cxy2saddr: DE = screen address of char C,B
- 26344 LD HL,(26102) ;
+ 26344 LD HL,(26102) ; Pick up top row of graphic to draw
  26347 CALL 26361    ; Call down to draw the top 2 chars of explosion
  26350 LD BC,(26100) ; Bullet cy,cx, that's the explosion place
  26354 INC B         ; inc cy, ready for bottom 2 chars of explosion
@@ -2008,7 +2029,7 @@ c26337 LD BC,(26100) ; Bullet cy,cx, that's the explosion place
 ; .
 ; This entry point is used by the routine at #R26225.
  26355 CALL 32254    ; cxy2saddr: DE = screen address of char C,B
- 26358 LD HL,(26104) ;
+ 26358 LD HL,(26104) ; Pick up bottom row of graphic to draw
 *26361 LD B,8        ; 8 scans
 *26363 LDI           ; Graphic to screen, left side
  26365 LDI           ; Graphic to screen, right side
@@ -2069,19 +2090,28 @@ c26375 LD HL,24616   ;
  26455 LD (24637),A  ;
  26458 RET           ;
 
-; Data block at 26459
+; Scores table based on alien rows.
+;
+; Row 0 is the top row,
+; aliens are worth 3*10 there. Rows 1 and 2 have aliens
+; worth 2*10, and rows 3 and 4 have aliens worth 1*10.
+@label=_ROW_SCORES_TABLE
 b26459 DEFB 3,2,2,1,1
 
-; Routine at 26464
+; Increase score when alien hit
 ;
+; Bump the player's score when an alien is hit.
+; Red are worth 10, green are worth 20, yellow are worth 30
+;.
 ; Used by the routine at #R26225.
-c26464 LD A,(26099)  ;
- 26467 LD HL,26459   ;
- 26470 CALL 26484    ;
- 26473 LD A,(HL)     ;
- 26474 LD HL,(24603) ;
+@label=increase_score
+c26464 LD A,(26099)  ; Pick up row of hit alien
+ 26467 LD HL,26459   ; {Calculate offset into this table
+ 26470 CALL 26484    ; }
+ 26473 LD A,(HL)     ; That's the value to add to score
+ 26474 LD HL,(24603) ; {Increment score
  26477 CALL 26484    ;
- 26480 LD (24603),HL ;
+ 26480 LD (24603),HL ; }
  26483 RET           ;
 
 ; Add A to HL (2)
