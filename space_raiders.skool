@@ -1048,7 +1048,9 @@ b24588 DEFB 0,128,237,176,201
 ; This one is the colour for the spaceship row
 @label=SCREEN_ATT_MAGENTA_ON_BLACK
  24600 DEFB 3
- 24601 DEFB 0,0
+@label=_HIGH_SCORE
+ 24601 DEFB 0
+ 24602 DEFB 0
 ; Current score divided by 10. So 20 if the score is 200.
 @label=_CURRENT_SCORE
  24603 DEFW 0
@@ -1071,7 +1073,8 @@ b24605 DEFB 5        ; Speed factor, doesn't change
  24612 DEFB 0
 @label=_ALIENS_LANDED
  24613 DEFB 0
- 24614 DEFB 0
+@label=_ALIENS_SOMETHING
+ 24614 DEFB 0        ; ???
 
 ; Data block at 24615
 b24615 DEFB 0,114,121,230,128
@@ -1265,60 +1268,67 @@ c24919 LD A,(24614)  ;
 *24928 LD (24614),A  ;
  24931 JP 24716      ; Jump back into game loop???
 
-; Unused
-@label=_UNKNOWN2
+@label=_DIGITS_LEFT_TO_PRINT
 s24934 DEFS 1
 
-; Routine at 24935
+; Print score
 ;
 ; Used by the routines at #R24989, #R25034 and #R25643.
-c24935 LD (24934),A  ;
- 24938 PUSH BC       ;
- 24939 CALL 32127    ;
- 24942 LD A,(24934)  ;
- 24945 NEG           ;
- 24947 ADD A,5       ;
+;
+; I:C=cy
+; I:B=cx
+; I:HL value to print
+; I:A number of digits
+@label=print_score
+c24935 LD (24934),A  ; Stash A
+ 24938 PUSH BC       ; Push cx,cy location to print at
+ 24939 CALL 32127    ; Sets IX 32112
+ 24942 LD A,(24934)  ; Recover A
+ 24945 NEG           ; 2s complement
+ 24947 ADD A,5       ; {Might be a range check?
  24949 JR Z,24956    ;
 *24951 INC IX        ;
  24953 DEC A         ;
- 24954 JR NZ,24951   ;
-*24956 LD A,(IX+0)   ;
- 24959 INC IX        ;
- 24961 CALL 32159    ;
- 24964 POP BC        ;
- 24965 LD D,B        ;
- 24966 LD E,C        ;
- 24967 INC E         ;
- 24968 PUSH DE       ;
- 24969 CALL 32275    ;
- 24972 LD A,(24934)  ;
+ 24954 JR NZ,24951   ; }
+*24956 LD A,(IX+0)   ; A contains digit to print
+ 24959 INC IX        ; Next digit
+ 24961 CALL 32159    ; HL points to UDG
+ 24964 POP BC        ; Retrieve x,y
+ 24965 LD D,B        ; {Use DE to add one to the
+ 24966 LD E,C        ; cx value, push ready for
+ 24967 INC E         ; next iteration, it's taken
+ 24968 PUSH DE       ; off by the POP BC}
+ 24969 CALL 32275    ; Print digit
+ 24972 LD A,(24934)  ; {One more done
  24975 DEC A         ;
- 24976 LD (24934),A  ;
- 24979 JR NZ,24956   ;
- 24981 XOR A         ;
- 24982 CALL 32159    ;
- 24985 POP BC        ;
- 24986 JP 32275      ;
+ 24976 LD (24934),A  ; }
+ 24979 JR NZ,24956   ; Back to print next digit
+ 24981 XOR A         ; {Find digit 0 and jump to
+ 24982 CALL 32159    ;  print it. Tags an extra
+ 24985 POP BC        ; '0' on the end, this is
+ 24986 JP 32275      ; the x10 multiplier!}
 
-; Routine at 24989
+; Reset score, update high score
 ;
 ; Used by the routine at #R24703.
-c24989 LD DE,(24603)  ;
- 24993 LD HL,(24601)  ;
- 24996 OR A           ;
- 24997 SBC HL,DE      ;
- 24999 JR NC,25005    ;
- 25001 LD (24601),DE  ;
-*25005 LD HL,0        ;
- 25008 LD (24603),HL  ;
+@label=reset_score
+c24989 LD DE,(24603)  ; Current score in DE
+ 24993 LD HL,(24601)  ; High score in HL
+ 24996 OR A           ; Clear flags
+ 24997 SBC HL,DE      ; Subtract current from high
+ 24999 JR NC,25005    ; No carry means current less than high
+ 25001 LD (24601),DE  ; Carry, so copy current into high
+*25005 LD HL,0        ; {Zero score ready for
+ 25008 LD (24603),HL  ; next game}
 ; This entry point is used by the routine at #R25034.
+@label=print_high_score
 *25011 CALL 32302     ; Print string which follows this instruction
- 25014 DEFB 21,0      ;
- 25016 DEFM "HIGH ",0 ;
- 25022 LD BC,26       ;
- 25025 LD HL,(24601)  ;
- 25028 LD A,5         ;
- 25030 JP 24935       ;
+ 25014 DEFB 21,0      ; {Print HIGH top right
+ 25016 DEFM "HIGH ",0 ; }
+ 25022 LD BC,26       ; cy=0, cx=26
+ 25025 LD HL,(24601)  ; Pick up high score number
+ 25028 LD A,5         ; Length of 5 chars
+ 25030 JP 24935       ; Print it
 
 ; Temporary store for the counter of lives remaining to draw
 @label=_DRAW_LIVES_REMAINING_COUNTER
@@ -2430,30 +2440,43 @@ c26965 PUSH IX       ;
  27002 POP IX        ;
  27004 RET           ;
 
-; Routine at 27005
+; Copy alien UDG data to a screen row
 ;
+; Each row of aliens has 11 of them. This populates the graphics
+; used to render a row.
+;.
+; Copy 32 bytes of alien UDG data (that's one sprite) from the location
+; at HL to the location at IX, 11 times over.
+;.
 ; Used by the routine at #R27030.
+;
+; I:HL Alien data
+; I:IX Alien row data
+@label=populate_alien_row_udgs
 c27005 LD C,32       ;
-*27007 LD E,(HL)     ;
+*27007 LD E,(HL)     ; {Load DE from 2 byte alien scan
  27008 INC HL        ;
  27009 LD D,(HL)     ;
- 27010 INC HL        ;
- 27011 LD B,11       ;
-*27013 LD (IX+0),E   ;
- 27016 INC IX        ;
+ 27010 INC HL        ; }
+ 27011 LD B,11       ; {Copy that pair of bytes
+*27013 LD (IX+0),E   ; repeatedly, 11 times, into
+ 27016 INC IX        ; the location pointed to by IX.
  27018 LD (IX+0),D   ;
  27021 INC IX        ;
- 27023 DJNZ 27013    ;
- 27025 DEC C         ;
+ 27023 DJNZ 27013    ; }
+ 27025 DEC C         ; {Repeat 32 times }
  27026 JR NZ,27007   ;
  27028 RET           ;
 
-; Unused
+@label=_ALIEN_INIT_COUNTER
 s27029 DEFS 1
 
-; Routine at 27030
+; Initialise alien data
+;
+; Not much clue what this is doing
 ;
 ; Used by the routine at #R24703.
+@label=init_aliens
 c27030 LD A,(24614)  ;
  27033 ADD A,3       ;
  27035 LD (27326),A  ;
@@ -2506,48 +2529,54 @@ c27097 LD IX,27327   ;
  27112 POP BC        ;
  27113 RET           ;
 
-; IX = 27127 + ( 'A' * 64 )
+; Find alien UDG data
 ;
+; Returns the location of the UDG data for the alien graphics.
+; A register provides the alien type to find.
+;.
 ; Used by the routine at #R27030.
 ;
-; I:A Multiplier
-; O:HL 27127 + A*64
-@label=multi_a_by_64_add_27327
-c27114 LD HL,27127   ;
- 27117 OR A          ; {If A is zero no multiplication is necessary
+; I:A Alien type: 0 for red alien, 1 for green alien, 2 for yellow alien
+; O:HL UDG address starting at #R27127
+@label=find_alien_udg
+c27114 LD HL,27127   ; Start with first alien UDG
+ 27117 OR A          ; {A=0 means we've already got what we want.
  27118 RET Z         ; }
- 27119 LD BC,64      ;
-*27122 ADD HL,BC     ;
- 27123 DEC A         ;
- 27124 JR NZ,27122   ;
+ 27119 LD BC,64      ; {Each alien set is 64 bytes long
+*27122 ADD HL,BC     ;  so add that offset for each type
+ 27123 DEC A         ;  of alien
+ 27124 JR NZ,27122   ;}
  27126 RET           ;
 
-; Data block at 27127
-b27127 DEFB 31,128,63,192,127,224,255,240
- 27135 DEFB 222,240,222,240,222,240,255,240
- 27143 DEFB 63,128,48,192,96,96,192,48
- 27151 DEFB 0,0,0,0,0,0,0,0
- 27159 DEFB 31,128,63,192,127,224,255,240
- 27167 DEFB 247,176,247,176,247,176,255,240
- 27175 DEFB 31,128,25,128,25,128,25,128
- 27183 DEFB 0,0,0,0,0,0,0,0
- 27191 DEFB 192,48,192,48,255,240,134,16
- 27199 DEFB 231,144,134,16,255,240,47,64
- 27207 DEFB 79,32,134,16,64,32,32,64
- 27215 DEFB 0,0,0,0,0,0,0,0
- 27223 DEFB 192,48,192,48,255,240,134,16
- 27231 DEFB 158,112,134,16,255,240,47,64
- 27239 DEFB 47,64,38,64,32,64,32,64
- 27247 DEFB 0,0,0,0,0,0,0,0
- 27255 DEFB 48,192,48,192,9,0,15,0
- 27263 DEFB 31,128,63,192,127,224,176,208
- 27271 DEFB 159,144,9,0,16,128,9,0
- 27279 DEFB 0,0,0,0,0,0,0,0
- 27287 DEFB 192,48,192,48,32,64,22,128
- 27295 DEFB 31,128,63,192,255,240,48,192
- 27303 DEFB 31,128,9,0,16,128,32,64
- 27311 DEFB 0,0,0,0,0,0,0,0
- 27319 DEFB 0,0,2,1,1,0,0,0
+; Aliens data
+;
+; Aliens are UDGs, 2 bytes per scan. They're 12 bits wide with a 4 bit
+; gap on the right side, and 12 bits tall with a 4 bit gap at the bottom.
+; Each graphic is 16x16 pixels, so 32 bytes per alien.
+@label=_RED_ALIEN_LOOK_LEFT
+b27127 DEFB 31,128,63,192,127,224,255,240,222,240,222,240,222,240,255,240
+ 27143 DEFB 63,128,48,192,96,96,192,48,0,0,0,0,0,0,0,0
+@label=_RED_ALIEN_LOOK_RIGHT
+ 27159 DEFB 31,128,63,192,127,224,255,240,247,176,247,176,247,176,255,240
+ 27175 DEFB 31,128,25,128,25,128,25,128,0,0,0,0,0,0,0,0
+@label=_GREEN_ALIEN_LOOK_LEFT
+ 27191 DEFB 192,48,192,48,255,240,134,16,231,144,134,16,255,240,47,64
+ 27207 DEFB 79,32,134,16,64,32,32,64,0,0,0,0,0,0,0,0
+@label=_GREEN_ALIEN_LOOK_RIGHT
+ 27223 DEFB 192,48,192,48,255,240,134,16,158,112,134,16,255,240,47,64
+ 27239 DEFB 47,64,38,64,32,64,32,64,0,0,0,0,0,0,0,0
+@label=_YELLOW_ALIEN_LOOK_LEFT
+ 27255 DEFB 48,192,48,192,9,0,15,0,31,128,63,192,127,224,176,208
+ 27271 DEFB 159,144,9,0,16,128,9,0,0,0,0,0,0,0,0,0
+@label=_YELLOW_ALIEN_LOOK_RIGHT
+ 27287 DEFB 192,48,192,48,32,64,22,128,31,128,63,192,255,240,48,192
+ 27303 DEFB 31,128,9,0,16,128,32,64,0,0,0,0,0,0,0,0
+; Alien handling data?
+ 27319 DEFB 0,0
+ 27321 DEFB 2,1,1,0,0
+@label=_ALIEN_SOMETHING3
+ 27326 DEFB 0
+@label=_ALIEN_SOMETHING2
  27327 DEFB 195,19
 
 ; Message at 27329
@@ -3850,27 +3879,33 @@ c32127 LD IX,32112   ;
  32154 LD IX,32112   ;
  32158 RET           ;
 
-; Routine at 32159
+; Find digit char UDG
 ;
+; Find the UDG for the digit in A
+;.
 ; Used by the routine at #R24935.
-c32159 LD HL,32174   ;
- 32162 SLA A         ;
- 32164 SLA A         ;
- 32166 SLA A         ;
- 32168 ADD A,L       ;
+;
+; I:A digit, 0 to 9
+; O:HL address of entry in table at #R32174
+@label=find_digit_udg
+c32159 LD HL,32174   ; Address of '0'
+ 32162 SLA A         ; x2
+ 32164 SLA A         ; x4
+ 32166 SLA A         ; x8
+ 32168 ADD A,L       ; {Add A to table
  32169 LD L,A        ;
- 32170 JR NC,32173   ;
- 32172 INC H         ;
-*32173 RET           ;
+ 32170 JR NC,32173   ; }
+ 32172 INC H         ; Adjust for carry
+*32173 RET           ; HL contains address of digit
 
-; Data block at 32174
+; Character set for scores
+;
+; #UDG32174  #UDG32182  #UDG32190  #UDG32198  #UDG32206
+; #UDG32214  #UDG32222  #UDG32230  #UDG32238  #UDG32246
+@label=_SCORES_CHAR_SET
 b32174 DEFB 126,126
-
-; Message at 32176
-t32176 DEFM "ffff"
-
-; Data block at 32180
-b32180 DEFB 126,126,24,24,24,24,24,24
+ 32176 DEFB 102,102,102,102
+ 32180 DEFB 126,126,24,24,24,24,24,24
  32188 DEFB 24,24,126,126,6,126,126,96
  32196 DEFB 126,126,126,126,6,126,126,6
  32204 DEFB 126,126,96,96,108,108,126,126

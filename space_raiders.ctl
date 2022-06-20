@@ -46,7 +46,10 @@ N 24599 This one is the colour for the player ship row
 B 24599,1,1
 N 24600 This one is the colour for the spaceship row
 @ 24600 label=SCREEN_ATT_MAGENTA_ON_BLACK
-B 24600,5,1,3,1
+B 24600,3,1,2
+N 24603 Current score divided by 10. So 20 if the score is 200.
+@ 24603 label=_CURRENT_SCORE
+W 24603,2,2
 b 24605 Game runtime data
 @ 24605 label=_GAME_RUNTIME_DATA
 @ 24605 label=_SPEED_FACTOR
@@ -346,9 +349,20 @@ C 26090,3 Do X axis collision check
 C 26093,1 Return if no collision
 C 26094,3 Collision detected, kill the alien
 b 26097 Data block at 26097
-B 26097,9,8,1
-N 26106 UDGs, interleaved. It's a 16x12 image, so 0th row bytes 0 and 1, then 1st row bytes 0 and 1, etc. I gave up trying to get SkoolKit to render it.
-@ 26106 label=_EXPLOSION_UDG
+B 26097,2,2
+N 26099 This holds the score value of a hit alien divided by 10. So a green alien, worth 20, would put 2 in here.
+@ 26099 label=_HIT_ALIEN_ROW
+B 26099,3,1,2
+N 26102 Address of top row of explosion graphic to be drawn is placed here. It'll be the UDG_TOP to draw it and UDG_CLEAR to clear it
+@ 26102 label=_EXPLOSION_GFX_TOP
+B 26102,2,2
+N 26104 Address of bottom row of explosion graphic to be drawn is placed here It'll be the UDG_TOP to draw it and UDG_CLEAR to clear it
+@ 26104 label=_EXPLOSION_GFX_BOTTOM
+B 26104,2,2
+N 26106 UDGs, interleaved. It's a 16x11 image, so 0th row bytes 0 and 1, then 1st row bytes 0 and 1, etc. The bottom 5 scans are empty. I gave up trying to get SkoolKit to render it.
+@ 26106 label=_EXPLOSION_UDG_TOP
+@ 26122 label=_EXPLOSION_UDG_BOTTOM
+@ 26138 label=_EXPLOSION_UDG_CLEAR
 B 26106,48,2
 c 26154 Bullet and alien collision check, X axis
 D 26154 Check whether the bullet's X axis position matches an alien's location. We already know that the Y axis matches one, so if this does too we have a hit.
@@ -357,9 +371,12 @@ R 26154 I:IX Pointer to alien structure which has y-axis collision
 R 26154 O:A 0 for no collision, 1 for collision
 @ 26154 label=bullet_alien_coll_xaxis
 c 26225 Alien hit
+D 26225 Call when the player bullet hits an alien. The alien explosion is drawn where the alien is, the blurbler is called, then the explosion is cleared. The game freezes while the explosion is on screen and the sound is playing, but you don't notice it.
 D 26225 Used by the routine at #R26049.
 R 26225 I:IX Alien structure, I think
 @ 26225 label=alien_hit
+C 26228,6 Top char row of explosion graphic
+C 26234,6 Bottom char row of explsion graphic
 C 26246,3 Sound burbler
 B 26249,9,8,1 Alien hit sound
 N 26258 Sound burbler return point
@@ -383,12 +400,14 @@ D 26337 Used by the routine at #R26225.
 @ 26337 label=draw_alien_explosion
 C 26337,4 Bullet cy,cx, that's the explosion place
 C 26341,3 cxy2saddr: DE = screen address of char C,B
+C 26344,3 Pick up top row of graphic to draw
 C 26347,3 Call down to draw the top 2 chars of explosion
 C 26350,4 Bullet cy,cx, that's the explosion place
 C 26354,1 inc cy, ready for bottom 2 chars of explosion
 N 26355 Bit of an odd way of moving the graphics bytes into the screen. It uses LDI to do 2 bytes, then restores the registers to put back half of the effects of that instruction.
 N 26355 This entry point is used by the routine at #R26225.
 C 26355,3 cxy2saddr: DE = screen address of char C,B
+C 26358,3 Pick up bottom row of graphic to draw
 C 26361,2 8 scans
 C 26363,2 Graphic to screen, left side
 C 26365,2 Graphic to screen, right side
@@ -398,10 +417,18 @@ C 26371,1 Go down one screen row
 c 26375 Routine at 26375
 D 26375 Used by the routine at #R26225.
 C 26419,3 This is used by bullet collision
-b 26459 Data block at 26459
+b 26459 Scores table based on alien rows.
+D 26459 Row 0 is the top row, aliens are worth 3*10 there. Rows 1 and 2 have aliens worth 2*10, and rows 3 and 4 have aliens worth 1*10.
+@ 26459 label=_ROW_SCORES_TABLE
 B 26459,5,5
-c 26464 Routine at 26464
+c 26464 Increase score when alien hit
+D 26464 Bump the player's score when an alien is hit. Red are worth 10, green are worth 20, yellow are worth 30
 D 26464 Used by the routine at #R26225.
+@ 26464 label=increase_score
+C 26464,3 Pick up row of hit alien
+C 26467,6 Calculate offset into this table
+C 26473,1 That's the value to add to score
+C 26474,9 Increment score
 c 26484 Add A to HL (2)
 D 26484 There are two copies of this code.
 D 26484 Used by the routines at #R26375 and #R26464.
