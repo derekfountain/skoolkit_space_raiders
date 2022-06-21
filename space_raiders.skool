@@ -1275,20 +1275,20 @@ s24934 DEFS 1
 ;
 ; Used by the routines at #R24989, #R25034 and #R25643.
 ;
-; I:C=cy
-; I:B=cx
-; I:HL value to print
+; I:C cy
+; I:B cx
+; I:HL value to print (the score or high score)
 ; I:A number of digits
 @label=print_score
 c24935 LD (24934),A  ; Stash A
  24938 PUSH BC       ; Push cx,cy location to print at
- 24939 CALL 32127    ; Sets IX 32112
+ 24939 CALL 32127    ; IX points to the 5 digits to print
  24942 LD A,(24934)  ; Recover A
  24945 NEG           ; 2s complement
- 24947 ADD A,5       ; {Might be a range check?
- 24949 JR Z,24956    ;
-*24951 INC IX        ;
- 24953 DEC A         ;
+ 24947 ADD A,5       ; {If A is less than the assumed length
+ 24949 JR Z,24956    ;  of 5 digits we bump IX along to
+*24951 INC IX        ;  reduce the length of the number
+ 24953 DEC A         ;  printed.
  24954 JR NZ,24951   ; }
 *24956 LD A,(IX+0)   ; A contains digit to print
  24959 INC IX        ; Next digit
@@ -3704,12 +3704,12 @@ c31922 LD HL,31666   ; Table of clever values
  31942 RR H          ; {HL = HL / 2
  31944 RR L          ; }
  31946 EX DE,HL      ; Result into DE for the moment
- 31947 LD HL,31658   ; Divider table
+ 31947 LD HL,31658   ; Divisor table
  31950 LD A,C        ; xpos
  31951 AND 7         ; Bottom 3 bits - 0 to 7
- 31953 LD C,A        ; {BC = offset into divider table
+ 31953 LD C,A        ; {BC = offset into divisor table
  31954 LD B,0        ; }
- 31956 ADD HL,BC     ; Find divider table location
+ 31956 ADD HL,BC     ; Find divisor table location
  31957 LD A,(HL)     ; A = pixel in the byte
  31958 EX DE,HL      ; Restore display file address into HL
  31959 RET           ;
@@ -3857,26 +3857,43 @@ c32059 LD HL,(32057) ;
  32109 INC HL        ;
  32110 JR 32107      ;
 
-; Data block at 32112
-b32112 DEFB 58,13,176,185,184,39,3,0
- 32120 DEFB 0,0,16,232,100,10,1
-
-; Routine at 32127
+; Printable score
 ;
+; 5 bytes for the 5 chars of the score. These are
+; held as 1,2,3, etc., not '1','2','3'.
+@label=_PRINTABLE_SCORE_DIGITS
+b32112 DEFS 5
+; These are the numbers 10000, 1000, 100, 10 and 1
+; as 16 bit values. Pairs are 5 bytes apart, so
+; for example 10000 is 39*256+16.
+@label=_PRINT_SCORE_10_DIVS
+ 32117 DEFB 39,3,0,0,0,16,232,100,10,1
+
+; Generate printable score
+;
+; Take the current score and divide it by 10000 repeatedly until
+; there's less than 10000 left. However many of those we did,
+; that goes into the leftmost printable score digit. Move along
+; one, reduce the divisor to 1000, and do it again.
+;.
 ; Used by the routine at #R24935.
-c32127 LD IX,32112   ;
- 32131 LD B,5        ;
-*32133 LD D,(IX+5)   ;
- 32136 LD E,(IX+10)  ;
- 32139 OR 255        ;
-*32141 SBC HL,DE     ;
- 32143 INC A         ;
- 32144 JR NC,32141   ;
- 32146 ADD HL,DE     ;
- 32147 LD (IX+0),A   ;
- 32150 INC IX        ;
- 32152 DJNZ 32133    ;
- 32154 LD IX,32112   ;
+;
+; I:HL Current score
+; O:IX Pointing to 5 digit printable score string
+@label=gen_printable_score
+c32127 LD IX,32112   ; Divisor table is 5 bytes past this
+ 32131 LD B,5        ; Score is printed as 5 chars wide
+*32133 LD D,(IX+5)   ; {DE contains divisor, 10000, 1000,
+ 32136 LD E,(IX+10)  ;  100, 100 or 1}
+ 32139 OR 255        ; A=-1
+*32141 SBC HL,DE     ; Subtract the divisor
+ 32143 INC A         ; {If no carry we had at least that many
+ 32144 JR NC,32141   ;  in the score and go around again}
+ 32146 ADD HL,DE     ; There was a carry, put that last lot back
+ 32147 LD (IX+0),A   ; A contains number of divisors (i.e. the digit)
+ 32150 INC IX        ; {Move to next digit, and
+ 32152 DJNZ 32133    ; go round again}
+ 32154 LD IX,32112   ; Exit with IX pointing at the string result
  32158 RET           ;
 
 ; Find digit char UDG
