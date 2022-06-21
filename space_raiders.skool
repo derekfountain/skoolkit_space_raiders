@@ -1537,6 +1537,7 @@ c25442 LD A,(24653)  ;
  25532 CP (IX+0)     ;
  25535 JR NZ,25547   ;
 ; This entry point is used by the routines at #R25592 and #R26225.
+@label=clear_spaceship
 *25537 XOR A         ;
  25538 LD (24653),A  ;
  25541 LD DE,16416   ; Row 1
@@ -1563,19 +1564,23 @@ c25442 LD A,(24653)  ;
  25588 LD (24653),A  ;
  25591 RET           ;
 
-; Routine at 25592
+; Hit spaceship
 ;
+; Award the bonus for hitting the spaceship, then play the
+; sound. Game pauses for a moment during sound. Then clear
+; the spaceship's row on the screen to remove the bonus value.
+;.
 ; Used by the routine at #R25442.
 @label=hit_spaceship
-c25592 CALL 25537                      ; {One of these will show the score for
- 25595 CALL 25643                      ; the spaceship???}
+c25592 CALL 25537                      ; Clear spaceship from screen
+ 25595 CALL 25643                      ; Bump score, display bonus
  25598 CALL 31987                      ; Sound burbler
  25601 DEFB 10,255,10,200,20,150,5,200 ; {Hit spaceship sound
  25609 DEFB 20,150,20,120,20,100,20,80 ;
  25617 DEFB 20,60,20,40,0              ; }
 ; Sound burbler return point
  25622 LD DE,16416                     ; Row 1
- 25625 JP 26004                        ; Clear row
+ 25625 JP 26004                        ; Clear bonus value from row 1
 
 ; Spaceship noise
 ;
@@ -1585,32 +1590,37 @@ c25628 CALL 31987            ; Sound burbler
  25631 DEFB 2,25,2,50,2,25,0 ; Spaceship noise
  25638 RET                   ; Sound burbler return point
 
-; Data block at 25639
+; Bonus table
+;
+; 50pts, 50pts, 100pts, 200pts
+@label=_BONUS_TABLE
 b25639 DEFB 5,5,10,20
 
 ; Hit spaceship
 ;
 ; Used by the routine at #R25592.
-c25643 LD A,(32058)  ; ???
- 25646 RRA           ;
- 25647 AND 3         ; Bottom 2 bits
- 25649 LD HL,25639   ; 0x6427, H=100 L=39
- 25652 CALL 25686    ; Add A to HL
- 25655 LD A,(HL)     ; ???
- 25656 LD B,A        ;
- 25657 LD HL,(24603) ; {Add A to contents of 24603
- 25660 CALL 25686    ;
+@label=award_spaceship_bonus
+c25643 LD A,(32058)  ; {Pick up "just about random value"
+ 25646 RRA           ;  and make it 0 to 3 inclusive
+ 25647 AND 3         ; }
+ 25649 LD HL,25639   ; {Find entry in bonus table.
+ 25652 CALL 25686    ;  Add offset into it.
+ 25655 LD A,(HL)     ;  A now contains spaceship bonus}
+ 25656 LD B,A        ; Stash bonus in B
+ 25657 LD HL,(24603) ; {Increase score and write
+ 25660 CALL 25686    ;  back.
  25663 LD (24603),HL ; }
- 25666 LD A,(25283)  ;
- 25669 SRL A         ;
- 25671 SRL A         ;
- 25673 SRL A         ;
- 25675 LD C,A        ;
- 25676 LD L,B        ;
- 25677 LD H,0        ;
- 25679 LD B,1        ;
- 25681 LD A,2        ;
- 25683 JP 24935      ;
+; Now we need to print the bonus where the spaceship is
+ 25666 LD A,(25283)  ; Pick up xpos in pixels
+ 25669 SRL A         ; div 2
+ 25671 SRL A         ; div 4
+ 25673 SRL A         ; div 8
+ 25675 LD C,A        ; C=cx
+ 25676 LD L,B        ; {Retrieve bonus from B and add to HL.
+ 25677 LD H,0        ; HL is points bonus as 16 bits}
+ 25679 LD B,1        ; B=cy=1
+ 25681 LD A,2        ; 2 chars, the print routine adds the extra '0'
+ 25683 JP 24935      ; Print that number where the ship is
 
 ; Add A to HL (1) . There are two copies of this code. . Used by the routine at
 ; #R25643.
@@ -1792,7 +1802,7 @@ c26001 LD DE,20704   ; Top scan of bottom row of the screen, where the ship is
 ; Takes the address of the top scan byte of the leftmost char in a row of 32
 ; chars and sets them to zero. So it clears 32 chars, 8 scans high, starting at
 ; DE.
-;
+;.
 ; Used by the routines at #R25034, #R25442, #R25592, #R30995 and #R31327.
 ;
 ; I:DE Top scan of screen char to start clearing at
@@ -3824,7 +3834,15 @@ b32055 DEFB 186
 
 ; Message at 32056
 b32056 DEFB 93
- 32057 DEFB 108
+
+; Cycling value
+;
+; This appears to be a value which is constantly incremented, and allowed
+; to cycle. The low byte is used to decide on the "random" bonus amount
+; for hitting a spaceship.
+@label=_CYCLING_VALUE_H
+b32057 DEFB 108
+@label=_CYCLING_VALUE_L
  32058 DEFB 77
 
 ; Routine at 32059
