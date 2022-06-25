@@ -1040,8 +1040,8 @@ b24588 DEFB 0,128,237,176,201
 ; barriers are cyan on black. It never changes during the game.
 @label=_SCREEN_ATT_CYAN_ON_BLACK
  24593 DEFB 5
- 24594 DEFB 6,4
- 24596 DEFB 4,2,2
+@label=_ALIEN_COLOUR_BANDS
+ 24594 DEFB 6,4,4,2,2       ; Yellow, green, green, red, red
 ; This one is the colour for the player ship row
 @label=SCREEN_ATT_WHITE_ON_BLACK
  24599 DEFB 7
@@ -1057,11 +1057,14 @@ b24588 DEFB 0,128,237,176,201
 
 ; Game runtime data
 @label=_GAME_RUNTIME_DATA
-@label=_SPEED_FACTOR
-b24605 DEFB 5        ; Speed factor, doesn't change
- 24606 DEFB 5
- 24607 DEFB 5
- 24608 DEFB 0
+@label=_SPACESHIP_SPEED_FACTOR
+b24605 DEFB 5        ; Speed factor to compensate when there's a spaceship to be drawn
+@label=_PLAYER_SPEED_FACTOR
+ 24606 DEFB 5        ; Speed factor to compensate when the player's ship needs to move
+@label=_BULLET_SPEED_FACTOR
+ 24607 DEFB 5        ; Speed factor to compensate when the bullet is in flight
+@label=_NUMBER_OF_SCREENS_COMPLETED
+ 24608 DEFB 0        ; starts off as 0, inc'ed to 1 at first game start
 @label=_EXTRA_LIFE_AWARDED
  24609 DEFB 0
 ; Barriers suppressed flag. This starts off zero so the barriers get drawn, but
@@ -1070,16 +1073,21 @@ b24605 DEFB 5        ; Speed factor, doesn't change
  24610 DEFB 0
 @label=_LIVES_REMAINING
  24611 DEFB 0        ; Number of lives player has left
- 24612 DEFB 0
+@label=_MORE_THAN9_SCREEN_COMPLETED
+ 24612 DEFB 0        ; some of sort of counter above 9 and below 50
 @label=_ALIENS_LANDED
  24613 DEFB 0
 @label=_ALIENS_SOMETHING
  24614 DEFB 0        ; ???
 
-; Data block at 24615
-b24615 DEFB 0,114,121,230,128
+@label=_NUM_ALIENS_REMAINING
+b24615 DEFB 0
+ 24616 DEFB 114,121,230,128
  24620 DEFB 194,28,115,58,246,140,230,128
- 24628 DEFB 202,39,115,205,0,0
+ 24628 DEFB 202,39,115,205
+@label=_ALIEN_COLOUR_BAND_ARG
+ 24632 DEFB 0
+ 24633 DEFB 0
 @label=_COLL_CHECK_SOMETHING
  24634 DEFB 0
  24635 DEFB 0
@@ -1116,7 +1124,11 @@ b24654 DEFB 1        ; Speed factor
  24662 DEFB 0
  24663 DEFB 0
 
-; Data block at 24664
+; Some sort of init block
+;
+; This 39 byte data block is copied from here to #R24615
+; at the start of each game. I don't know what it is.
+@label=_INIT_BLOCK_UNKNOWN
 b24664 DEFB 55,11,11,11
  24668 DEFB 11,11,5,5,5,5,5,5
  24676 DEFB 5,5,5,5,5,0,0,4
@@ -1133,7 +1145,8 @@ c24703 DI            ; start here
  24707 CALL 32287    ; Clear screen pixels
  24710 CALL 24989    ; ???
  24713 CALL 25034    ; Draw lives as ships on top row
-; This entry point is used by the routine at #R24919. Top of game loop?
+; This entry point is used by the routine at #R24919. Top of new screen loop?
+@label=new_screen_loop
 *24716 CALL 24835    ;
  24719 CALL 24806    ;
  24722 CALL 27030    ;
@@ -1142,8 +1155,9 @@ c24703 DI            ; start here
  24731 CALL 31436    ;
  24734 CALL 31075    ;
 ; This entry point is used by the routine at #R24868.
+@label=game_loop
 *24737 CALL 25105    ; Consider awarding extra life
- 24740 CALL 25094    ; ???
+ 24740 CALL 25094    ; Update score shown onscreen
  24743 CALL 26566    ; Read keyboard, deal with ship and bullet repositioning
  24746 CALL 26038    ; Check if bullet has hit alien, kill alien if so
  24749 LD A,(24615)  ;
@@ -1163,30 +1177,36 @@ c24703 DI            ; start here
  24784 LD A,(24613)  ; {Have the aliens landed? Game over if they have.
  24787 OR A          ;
  24788 JP NZ,25160   ; }
-; Return to top of game loop
+; Slight delay to keep speed consistent, then this jumps back to top of game loop
  24791 JP 24868      ;
 
 ; Storage byte for routine that follows
-@label=_UNKNOWN1
+@label=_ALIENS_SPEED_CONTROL
 s24794 DEFS 1
 
-; Routine at 24795
+; Move aliens along, based on speed control value
 ;
 ; Used by the routine at #R24703.
-c24795 LD A,(24794)  ; {Pick up storage byte Decrement it and return if it's
- 24798 DEC A         ; not zero
- 24799 LD (24794),A  ;
+@label=dec_timer_move_aliens
+c24795 LD A,(24794)  ; {Pick up speed control, decrement it,
+ 24798 DEC A         ;  if it's not zero it's not yet time
+ 24799 LD (24794),A  ;  to move the aliens.
  24802 RET NZ        ; }
- 24803 CALL 30857    ;
+ 24803 CALL 30857    ; Move aliens, drop through
+; Aliens have been moved, now recalculate speed control based on how
+; many are left. This puts a number in #R24794. The algorihm is
+; SPEED_CONTROL = (NUM_LEFT/4 + NUM_LEFT/8) + 4
+;.
 ; This entry point is used by the routine at #R24703.
-*24806 LD A,(24615)  ;
- 24809 SRL A         ;
- 24811 SRL A         ;
- 24813 LD B,A        ;
- 24814 SRL A         ;
- 24816 ADD A,B       ;
- 24817 ADD A,4       ;
- 24819 LD (24794),A  ;
+@label=set_alien_speed
+*24806 LD A,(24615)  ; How many are left?
+ 24809 SRL A         ; /2
+ 24811 SRL A         ; /4
+ 24813 LD B,A        ; Div by 4 in B
+ 24814 SRL A         ; /8
+ 24816 ADD A,B       ; div8 + div4
+ 24817 ADD A,4       ; +4
+ 24819 LD (24794),A  ; Result
  24822 RET           ;
 
 ; Reset game data
@@ -1202,42 +1222,50 @@ c24823 LD HL,24654   ; Initialisation data
 ; Routine at 24835
 ;
 ; Used by the routine at #R24703.
-c24835 LD HL,24664   ;
- 24838 LD DE,24615   ;
- 24841 LD BC,39      ;
- 24844 LDIR          ;
- 24846 LD A,(24608)  ;
- 24849 INC A         ;
- 24850 RET Z         ;
- 24851 LD (24608),A  ;
- 24854 CP 50         ;
+@label=init_of_some_sort
+c24835 LD HL,24664   ; { Copy this block of data
+ 24838 LD DE,24615   ;   into what looks like the
+ 24841 LD BC,39      ;   game's rumtime data
+ 24844 LDIR          ; }
+ 24846 LD A,(24608)  ; { Pick up screen number.
+ 24849 INC A         ;   Increment
+ 24850 RET Z         ; }
+ 24851 LD (24608),A  ; Write it back
+ 24854 CP 50         ; Return if more than 50
  24856 RET NC        ;
- 24857 CP 9          ;
+ 24857 CP 9          ; Return if less than 9
  24859 RET C         ;
- 24860 LD A,(24612)  ;
- 24863 INC A         ;
+ 24860 LD A,(24612)  ; Inc this, don't know what it does
+ 24863 INC A         ; If screens completed is <9 or >50?
  24864 LD (24612),A  ;
  24867 RET           ;
 
-; Routine at 24868
+; Dynamic pause
 ;
+; Control the speed of animation by pausing when things aren't
+; happening. So if there's no spaceship being animated we
+; pause slightly to keep speed consistent with when there is
+; a spaceship on screen. Same for when we need to animate the
+; player's ship moving, and the player's bullet.
+;.
 ; Used by the routine at #R24703.
-c24868 LD A,(24653)  ;
- 24871 OR A          ;
- 24872 JR NZ,24880   ;
+@label=dynamic_pause
+c24868 LD A,(24653)  ; {Is there a spaceship on screen? If there
+ 24871 OR A          ;  isn't we pause a moment to control speed.
+ 24872 JR NZ,24880   ;  If there is we skip that pause}
  24874 LD A,(24605)  ; Load A with speed factor
  24877 CALL 24908    ; Busy wait a multiple of 'A' states
-*24880 LD A,(24640)  ; Player ship position adjustment, -1, 0 or 1
- 24883 OR A          ;
- 24884 JR NZ,24892   ;
- 24886 LD A,(24606)  ;
- 24889 CALL 24908    ;
-*24892 LD A,(24641)  ; {Return if a bullet is in flight
- 24895 OR A          ;
+*24880 LD A,(24640)  ; {Do we need to move and redraw the player
+ 24883 OR A          ;  ship this iteration? If not, we pause.
+ 24884 JR NZ,24892   ; }
+ 24886 LD A,(24606)  ; Load A with speed factor
+ 24889 CALL 24908    ; Busy wait a multiple of 'A' states
+*24892 LD A,(24641)  ; {Is there a bullet is in flight?
+ 24895 OR A          ;  If not we need to pause here too.
  24896 JP NZ,24737   ; }
- 24899 LD A,(24607)  ;
- 24902 CALL 24908    ;
- 24905 JP 24737      ;
+ 24899 LD A,(24607)  ; Load A with speed factor
+ 24902 CALL 24908    ; Busy wait a multiple of 'A' states
+ 24905 JP 24737      ; Back to game loop
 
 ; delay_ms (approx)
 ;
@@ -1367,17 +1395,18 @@ c25034 LD DE,16384   ; Select 0th row
  25084 JR NZ,25066   ; Back to draw next ship
  25086 POP DE        ; {Restore the X,Y position which is the player's ship
  25087 LD (24638),DE ; }
-*25091 CALL 25011    ;
+*25091 CALL 25011    ; Update high score, drop through to update current score
 ; This entry point is used by the routine at #R24703.
-*25094 LD HL,(24603) ;
- 25097 LD BC,0       ;
- 25100 LD A,5        ;
- 25102 JP 24935      ;
+@label=update_onscreen_score
+*25094 LD HL,(24603) ; Pick up current score
+ 25097 LD BC,0       ; {Print it at 0,0
+ 25100 LD A,5        ;  5 digits wide
+ 25102 JP 24935      ;}
 
 ; Award extra life
 ;
 ; Used by the routine at #R24703.
-@label=award_extra_life
+@label=check_for_extra_life
 c25105 LD A,(24609)                 ; {Check if extra life has been awarded.
  25108 OR A                         ; You only get the one.
  25109 RET NZ                       ; }
@@ -1859,11 +1888,11 @@ c26049 LD A,(24643)  ; Pick up bullet Y pos
  26054 SRL A         ;
  26056 SRL A         ;
  26058 INC A         ; }
- 26059 LD (26101),A  ;
+ 26059 LD (26101),A  ; Stash A
  26062 LD A,(24634)  ;
 *26065 LD (26099),A  ;
  26068 CALL 27097    ; IX = 27327 + ( 'A' * 706 )
- 26071 LD A,(26101)  ;
+ 26071 LD A,(26101)  ; Retrieve A
  26074 CP (IX+1)     ; IX+1 must be alien cypos
  26077 JR Z,26087    ;
  26079 LD A,(26099)  ;
@@ -1882,7 +1911,10 @@ b26097 DEFB 0,0
 ; So a green alien, worth 20, would put 2 in here.
 @label=_HIT_ALIEN_ROW
  26099 DEFB 0
- 26100 DEFB 0,0
+ 26100 DEFB 0
+; Y axis collision code stores A register here
+@label=_COLL_YAXIS_TEMP_STORE
+ 26101 DEFB 0
 ; Address of top row of explosion graphic to be drawn is placed here.
 ; It'll be the UDG_TOP to draw it and UDG_CLEAR to clear it
 @label=_EXPLOSION_GFX_TOP
@@ -2523,6 +2555,9 @@ c27030 LD A,(24614)  ;
 ; 27327 starts a large data block which starts off with the assembler strings
 ; and stuff, so it's being populated with some large amount of data.
 ; .
+; For values of A 0 to 4 this seems to yield a pointer into data. 5 or over
+; yields a pointer to code. So it might be alien rows?
+.
 ; Used by the routines at #R25749, #R26049, #R30857 and #R31075.
 ;
 ; I:A Multiplier
@@ -3088,7 +3123,8 @@ b29919 DEFB 140,254,32,192,50,37,140,42
  30479 DEFB 35,229,197,205,8,138,193,225
  30487 DEFB 5,194,241,137,58,238,140,185
  30495 DEFB 196,16,106,201,1,0,0,197
- 30503 DEFB 122,179,202,125,104,235,229,94
+ 30503 DEFB 122,179
+ 30505 DEFB 202,125,104,235,229,94
  30511 DEFB 35,86,123,178,194,17,138,225
  30519 DEFB 125,180,200,205,54,138
 
@@ -3160,17 +3196,20 @@ b30760 DEFB 140,54,0,33,61,140,195,139
  30848 DEFB 0,0,0,0,0,1,1,0
  30856 DEFB 33
 
-; Routine at 30857
+; Move aliens
+;
+; March the aliens along and down
 ;
 ; Used by the routine at #R24795.
-c30857 LD A,(24632)  ;
+@label=move_aliens
+c30857 LD A,(24632)  ; Pick up this
  30860 LD B,A        ;
- 30861 LD A,(24634)  ;
- 30864 CP B          ;
+ 30861 LD A,(24634)  ; Pick up that
+ 30864 CP B          ; A is bigger?
  30865 JR NC,30888   ;
- 30867 LD (24632),A  ;
- 30870 LD A,(24633)  ;
- 30873 OR A          ;
+ 30867 LD (24632),A  ; Put that into this
+ 30870 LD A,(24633)  ; Pick up third thing
+ 30873 OR A          ; Zero?
  30874 JR NZ,30888   ;
  30876 LD A,(24632)  ;
  30879 CALL 27097    ; IX = 27327 + ( 'A' * 706 )
@@ -3239,22 +3278,24 @@ c30857 LD A,(24632)  ;
 c30995 CALL 31987       ; Sound burbler
  30998 DEFB 8,250,0     ;
 ; Sound burbler return point
- 31001 LD A,(31110)     ; Lowest alien point?
+ 31001 LD A,(31110)     ; Lowest alien position
  31004 CP 18            ; {Row 18 is top of barriers, remove them if the aliens
  31006 CALL NC,31327    ; are that far}
- 31009 LD A,(31110)     ; Lowest alien point?
- 31012 CP 21            ;
- 31014 JR Z,31046       ;
- 31016 LD B,A           ;
- 31017 LD C,0           ;
- 31019 CALL 32254       ; cxy2saddr: DE = screen address of char C,B
+ 31009 LD A,(31110)     ; Lowest alien position again
+ 31012 CP 21            ; {Row 21 is bottom of screen.
+ 31014 JR Z,31046       ;  If they've got this low it's game over }
+ 31016 LD B,A           ; {BC contains lowest alien ypos
+ 31017 LD C,0           ; }
+ 31019 CALL 32254       ; cxy2saddr: DE = screen address of lowest alien
  31022 CALL 26004       ; Clear one character row (32 chars)
- 31025 LD BC,(31109)    ;
- 31029 INC B            ;
+                        ; Alien sprites are 2 chars high, this clears
+			; the top of the alien's heads
+ 31025 LD BC,(31109)    ; Top alien ypos?
+ 31029 INC B            ; Alien xpos
 ; This entry point is used by the routine at #R31064.
-*31030 LD IX,(31107)    ;
- 31034 LD (IX+0),C      ;
- 31037 LD (IX+1),B      ;
+*31030 LD IX,(31107)    ; Pointer to alien structure
+ 31034 LD (IX+0),C      ; New ypos
+ 31037 LD (IX+1),B      ; New xpos
  31040 CALL 31119       ;
  31043 JP 31198         ;
 @label=aliens_landed
@@ -3295,41 +3336,52 @@ c31075 LD A,4                       ;
 ; Unused
 @label=_TEMP_IX_STASH
 s31107 DEFS 2
+@label=_NEXT_ALIEN_ROW_TO_DRAW
+b31109 DEFB 0                       ; Next screen row to populate with aliens
+@label=_LOWEST_ALIEN_YPOS
+ 31110 DEFB 0                       ; This one is right
+@label=_ALIEN_ROW_LEFT_MARGIN
+ 31111 DEFB 0                       ; How far the aliens are from left side
+@label=_ALIEN_ROW_BANK_WIDTH       
+ 31112 DEFB 0                       ; Width of this row, starts at 11 aliens, reduces
+@label=_ALIEN_ROW_RIGHT_MARGIN
+ 31113 DEFB 0                       ; How far aliens are from the right side
+@label=_ALIEN_SPRITE_DATA_PTR
+ 31114 DEFB 0,0                     ; Points to the left or right looking alien sprites
+@label=_SPRITE_SCR_DEST
+ 31116 DEFB 0,0
+@label=_SPRITE_DRAW_SCAN_COUNTER
+ 31118 DEFB 0
 
-; Unused
-@label=_TEMP_BC_STASH
-s31109 DEFS 8
- 31117 DEFS 6
-
-; Something to do with aliens
+; Find alien row data
 ;
 ; Routine at 31119
 ; .
 ; Used by the routines at #R26154, #R30857, #R30995 and #R31075.
-@label=aliens_something
+@label=maybe_find_alien_row_data
 c31119 LD (31107),IX ; Stash IX
  31123 LD C,(IX+0)   ; Alien cypos
  31126 LD B,(IX+1)   ; Alien cxpos
- 31129 LD (31109),BC ;
- 31133 LD A,(24636)  ;
- 31136 INC A         ;
- 31137 SLA A         ;
+ 31129 LD (31109),BC ; Stash BC, C at lowest address
+ 31133 LD A,(24636)  ; Pick up something ???
+ 31136 INC A         ; Next
+ 31137 SLA A         ; A*2
  31139 LD C,A        ;
  31140 LD B,0        ;
- 31142 ADD IX,BC     ;
- 31144 LD A,(31109)  ;
- 31147 RRA           ;
- 31148 JR NC,31155   ;
- 31150 LD BC,352     ;
- 31153 ADD IX,BC     ;
-*31155 LD (31114),IX ;
- 31159 LD A,(31109)  ;
- 31162 LD B,A        ;
- 31163 LD A,(24636)  ;
- 31166 SLA A         ;
- 31168 ADD A,B       ;
+ 31142 ADD IX,BC     ; IX += A*2
+ 31144 LD A,(31109)  ; ypos in A
+ 31147 RRA           ; div 2
+ 31148 JR NC,31155   ; Every other one? ALiens are 2 bytes wide
+ 31150 LD BC,352     ; ???
+ 31153 ADD IX,BC     ; Add more to IX
+*31155 LD (31114),IX ; ???
+ 31159 LD A,(31109)  ; {ypos in B
+ 31162 LD B,A        ; }
+ 31163 LD A,(24636)  ; ???
+ 31166 SLA A         ; x2
+ 31168 ADD A,B       ; 
  31169 LD (31111),A  ;
- 31172 LD A,(24636)  ;
+ 31172 LD A,(24636)  ; Pick upsomething again ???
  31175 LD B,A        ;
  31176 LD A,(24637)  ;
  31179 SUB B         ;
@@ -3343,52 +3395,80 @@ c31119 LD (31107),IX ; Stash IX
  31194 LD (31113),A  ;
  31197 RET           ;
 
-; Routine at 31198
+; Print one row of aliens
 ;
+; Display a single row of aliens, 11 of them (including gaps
+; where aliens have been zapped).
+;.
+; It sets the attributes of the band then picks up the screen row
+; to fill in next. There are 2 screen rows per band of aliens, the top
+; (heads, if you like) and bottom (the alien's feet).
+;.
 ; Used by the routines at #R30995 and #R31075.
-c31198 CALL 31303    ;
- 31201 LD BC,(31109) ;
- 31205 CALL 31213    ;
- 31208 LD BC,(31109) ;
- 31212 INC B         ;
-*31213 LD A,8        ;
- 31215 LD (31118),A  ;
- 31218 LD C,0        ;
- 31220 CALL 32254    ; cxy2saddr: DE = screen address of char C,B
- 31223 LD (31116),DE ;
-*31227 CALL 31257    ;
- 31230 LD HL,(31114) ;
- 31233 LD BC,22      ;
+@label=print_alien_row
+c31198 CALL 31303    ; Set attribute band on screen
+ 31201 LD BC,(31109) ; {Start with the top part of the UDG,
+ 31205 CALL 31213    ;  the alien's heads as it were, Call down.}
+ 31208 LD BC,(31109) ; {Same again with B++, which does the feet.
+ 31212 INC B         ;  Drop through and out this time}
+*31213 LD A,8        ; {8 scans, we do this twice so that's the
+ 31215 LD (31118),A  ; 16 pixel high sprites}
+ 31218 LD C,0        ; cx, start at extreme left
+ 31220 CALL 32254    ; DE = screen address of cy,cx
+ 31223 LD (31116),DE ; This variable holds the address to sprite
+*31227 CALL 31257    ; Takes #R31116 as screen location to draw to.
+                     ; Takes #R31118 as number of scans to draw.
+                     ; Takes #R31114 as sprite data to fill in.
+ 31230 LD HL,(31114) ; Scan routine leaves this value???
+ 31233 LD BC,22      ; 22 chars, that's 11 aliens, each 2 chars wide?
  31236 ADD HL,BC     ;
  31237 LD (31114),HL ;
- 31240 LD HL,(31116) ;
+ 31240 LD HL,(31116) ; {Next scan down
  31243 INC H         ;
- 31244 LD (31116),HL ;
- 31247 LD A,(31118)  ;
+ 31244 LD (31116),HL ; }
+ 31247 LD A,(31118)  ; {One more scan drawn
  31250 DEC A         ;
- 31251 LD (31118),A  ;
- 31254 JR NZ,31227   ;
+ 31251 LD (31118),A  ; }
+ 31254 JR NZ,31227   ; Back for the next one
  31256 RET           ;
 
-; Routine at 31257
+; Draw an alien sprite scan line
 ;
+; This fills in a scan line of alien graphics, i.e. one pixel of the
+; graphic data, drawn left to right. It zeroes out the left margin
+; (width depending on how far the currently being drawn aliens have
+; moved to the right) then fills in the bank of aliens (width depending
+; on how many of the side aliens have been killed). It then zeroes out
+; the right margin.
+;.
 ; Used by the routine at #R31198.
-c31257 LD DE,(31116) ;
- 31261 LD A,(31111)  ;
- 31264 CALL 31281    ;
- 31267 LD HL,(31114) ;
- 31270 LD BC,(31112) ;
- 31274 LD B,0        ;
- 31276 LDIR          ;
- 31278 LD A,(31113)  ;
-*31281 OR A          ;
- 31282 RET Z         ;
- 31283 LD B,A        ;
- 31284 XOR A         ;
-*31285 LD (DE),A     ;
- 31286 INC DE        ;
- 31287 DJNZ 31285    ;
- 31289 RET           ;
+;
+; I: #R31116 Screen address to draw to
+; I: #R31114 Sprite data to use
+; I: #R31111 Number of left side scans to zero
+; I: #R31112 Number of alien scans to draw
+; I: #R31113 Number of right side scans to zero
+@label=draw_alien_sprite_scan
+c31257 LD DE,(31116) ; Screen address from here
+ 31261 LD A,(31111)  ; A is number of left side bytes to zero out
+ 31264 CALL 31281    ; Zero those bytes from DE
+ 31267 LD HL,(31114) ; HL is sprite data
+ 31270 LD BC,(31112) ; {C is number of alien scans to draw
+ 31274 LD B,0        ; }
+ 31276 LDIR          ; DE is end of zeroed bytes, draw from there across screen
+ 31278 LD A,(31113)  ; Pick up right side scans to zero out
+                     ; and drop through
+; Called from just above. Takes in A a count of consecutive
+; bytes at DE which it writes 0 into
+@label=zero_alien_sprite_scan
+*31281 OR A          ; {If A is zero don't bother
+ 31282 RET Z         ; }
+ 31283 LD B,A        ; Byte counter comes from A
+ 31284 XOR A         ; We're writing zeroes
+*31285 LD (DE),A     ; {Fill with zeroes from
+ 31286 INC DE        ;  DE onwards
+ 31287 DJNZ 31285    ; }
+ 31289 RET           ; Back with DE pointing to next byte
 
 ; Set INK colour of attributes
 ;
@@ -3409,22 +3489,36 @@ c31290 CALL 32343    ; Find attribute address of cy,cx in BC
  31300 JR NZ,31293   ;
  31302 RET           ;
 
-; Sets 2 rows to an INK colour
+; Set alien colour band
 ;
-; This might be setting the colour bands for the aliens?
-@label=set_attribute_band
-c31303 LD BC,(31109) ; Pick up cy from here
+; Sets 2 rows of attributes to an INK colour, starting with
+; the row in #R31109. The colour comes from a table indexed
+; by the value at #R24632.
+;.
+; As the aliens move down the screen the bands of yellow,
+; green, green, red, red need to move down with them. This
+; sets the colour bands for one row of aliens
+;.
+; The alien band to set is passed in via #R24632 and provides
+; the colour: top row (0) is yellow, row 1 is green, etc
+;.
+; #R31109 is cy; the cy is the attribute row to start at.
+; #R24632 contains band to set colour, 0 being top alien row
+;.
+; Called from the routine at #R31198
+@label=set_alien_colour_band
+c31303 LD BC,(31109) ; cy from here goes into B
  31307 LD C,0        ; cx is 0, start of row
- 31309 LD HL,24594   ; 0x6012
- 31312 LD A,(24632)  ; ???
- 31315 ADD A,L       ;
+ 31309 LD HL,24594   ; Colour bands table
+ 31312 LD A,(24632)  ; Alien row colours, 0 to 4 (top to bottom)
+ 31315 ADD A,L       ; {Find table entry
  31316 LD L,A        ;
  31317 JR NC,31320   ;
- 31319 INC H         ;
+ 31319 INC H         ; }
 *31320 LD A,(HL)     ; Pick up INK colour from (HL)
  31321 LD E,A        ; E is INK colour
  31322 LD D,64       ; 2 full rows
- 31324 JP 31290      ; Set INK colour
+ 31324 JP 31290      ; Set INK colour of 64 cells from B,C
 
 ; Remove barriers when the aliens get low
 ;
