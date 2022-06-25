@@ -1077,7 +1077,7 @@ b24605 DEFB 5        ; Speed factor to compensate when there's a spaceship to be
  24612 DEFB 0        ; some of sort of counter above 9 and below 50
 @label=_ALIENS_LANDED
  24613 DEFB 0
-@label=_ALIENS_SOMETHING
+@label=_ALIENS_START_ROW
  24614 DEFB 0        ; ???
 
 @label=_NUM_ALIENS_REMAINING
@@ -1162,16 +1162,16 @@ c24703 DI            ; start here
  24740 CALL 25094    ; Update score shown onscreen
  24743 CALL 26566    ; Read keyboard, deal with ship and bullet repositioning
  24746 CALL 26038    ; Check if bullet has hit alien, kill alien if so
- 24749 LD A,(24615)  ;
- 24752 OR A          ;
- 24753 JP Z,24919    ;
- 24756 CALL 25708    ;
+ 24749 LD A,(24615)  ; {If there are no aliens left
+ 24752 OR A          ;  advance their starting position
+ 24753 JP Z,24919    ;  ready for next screen}
+ 24756 CALL 25708    ; ??? Removing this makes new lives appear at top over and over
  24759 JR Z,24771    ;
  24761 LD A,(24611)  ; Lives remaining
  24764 OR A          ;
  24765 JP Z,25160    ;
  24768 CALL 25034    ;
-*24771 CALL 25442    ;
+*24771 CALL 25442    ; Spaceship something...
  24774 CALL 24795    ;
  24777 LD A,(24611)  ; Lives remaining
  24780 OR A          ;
@@ -1285,18 +1285,20 @@ c24908 LD B,A        ;
  24916 DJNZ 24909    ;
  24918 RET           ;
 
-; Count up to 7, no higher
+; Advance alien start row
 ;
-; Increments the number at 24614 up to 7, but no higher. Used by the routine at
-; #R24703.
-@label=count_to_7
+; Increments the row number the aliens start at next screen.
+; They come down 7 rows, no more.
+;.
+; Used by the routine at #R24703.
+@label=advance_alien_start_row
 c24919 LD A,(24614)  ;
  24922 INC A         ;
  24923 CP 8          ;
  24925 JR NZ,24928   ;
  24927 DEC A         ;
 *24928 LD (24614),A  ;
- 24931 JP 24716      ; Jump back into game loop???
+ 24931 JP 24716      ; Jump back to new screen
 
 @label=_DIGITS_LEFT_TO_PRINT
 s24934 DEFS 1
