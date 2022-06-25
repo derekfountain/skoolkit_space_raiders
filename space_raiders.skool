@@ -1143,7 +1143,9 @@ b24664 DEFB 55,11,11,11
 c24703 DI            ; start here
  24704 CALL 24823    ; Game data initialisation, copies 10 bytes
  24707 CALL 32287    ; Clear screen pixels
- 24710 CALL 24989    ; ???
+ 24710 CALL 24989    ; Reset score, maybe update high score from last
+                     ; High score is only updated when new game starts
+                     ; which seems a tad unfair
  24713 CALL 25034    ; Draw lives as ships on top row
 ; This entry point is used by the routine at #R24919. Top of new screen loop?
 @label=new_screen_loop
@@ -1338,8 +1340,13 @@ c24935 LD (24934),A  ; Stash A
 
 ; Reset score, update high score
 ;
+; Check #R24603 and copy it into #R24601 if it's greater.
+; Zero #R24603 ready for next game and print the high
+; score, including label, regardless of whether it got
+; incremented.
+;.
 ; Used by the routine at #R24703.
-@label=reset_score
+@label=reset_score_update_high
 c24989 LD DE,(24603)  ; Current score in DE
  24993 LD HL,(24601)  ; High score in HL
  24996 OR A           ; Clear flags
@@ -3199,7 +3206,7 @@ b30760 DEFB 140,54,0,33,61,140,195,139
 ; Move aliens
 ;
 ; March the aliens along and down
-;
+;.
 ; Used by the routine at #R24795.
 @label=move_aliens
 c30857 LD A,(24632)  ; Pick up this
@@ -3397,39 +3404,39 @@ c31119 LD (31107),IX ; Stash IX
 
 ; Print one row of aliens
 ;
-; Display a single row of aliens, 11 of them (including gaps
-; where aliens have been zapped).
-;.
-; It sets the attributes of the band then picks up the screen row
-; to fill in next. There are 2 screen rows per band of aliens, the top
-; (heads, if you like) and bottom (the alien's feet).
+; Display a single row of aliens, the subroutine this calls displaying
+; one scan line at a time. This code does 8 scan lines, which is the
+; top half of the alien graphic data, then does it again with the bottom
+; half of the alien graphic data.
 ;.
 ; Used by the routines at #R30995 and #R31075.
 @label=print_alien_row
 c31198 CALL 31303    ; Set attribute band on screen
  31201 LD BC,(31109) ; {Start with the top part of the UDG,
  31205 CALL 31213    ;  the alien's heads as it were, Call down.}
- 31208 LD BC,(31109) ; {Same again with B++, which does the feet.
+ 31208 LD BC,(31109) ; {Back here, so do same again with B++, which does the feet.
  31212 INC B         ;  Drop through and out this time}
-*31213 LD A,8        ; {8 scans, we do this twice so that's the
+*31213 LD A,8        ; {8 scans, that's half an alien, vertically speaking
  31215 LD (31118),A  ; 16 pixel high sprites}
  31218 LD C,0        ; cx, start at extreme left
  31220 CALL 32254    ; DE = screen address of cy,cx
- 31223 LD (31116),DE ; This variable holds the address to sprite
+ 31223 LD (31116),DE ; This variable holds the left side address of the screen scan line
 *31227 CALL 31257    ; Takes #R31116 as screen location to draw to.
-                     ; Takes #R31118 as number of scans to draw.
                      ; Takes #R31114 as sprite data to fill in.
- 31230 LD HL,(31114) ; Scan routine leaves this value???
- 31233 LD BC,22      ; 22 chars, that's 11 aliens, each 2 chars wide?
- 31236 ADD HL,BC     ;
- 31237 LD (31114),HL ;
+                     ; Takes #R31111 as width of left margin to zero.
+                     ; Takes #R31112 as width of alien bank.
+                     ; Takes #R31113 as width of right margin to zero.
+ 31230 LD HL,(31114) ; {Pick up data pointer and add 22 bytes to it.
+ 31233 LD BC,22      ;  22 chars is 11 aliens, each 2 chars wide.
+ 31236 ADD HL,BC     ;  i.e. this advances the alien sprite data
+ 31237 LD (31114),HL ;  ready for displaying the next scan line.}
  31240 LD HL,(31116) ; {Next scan down
  31243 INC H         ;
  31244 LD (31116),HL ; }
  31247 LD A,(31118)  ; {One more scan drawn
  31250 DEC A         ;
  31251 LD (31118),A  ; }
- 31254 JR NZ,31227   ; Back for the next one
+ 31254 JR NZ,31227   ; Back for the next of the 8 we do here
  31256 RET           ;
 
 ; Draw an alien sprite scan line
