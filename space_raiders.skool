@@ -1100,6 +1100,7 @@ b24615 DEFB 0
  24640 DEFB 0                             ; Player ship adjustment, -1, 0 or +1
 @label=_PLAYER_BULLET_IN_FLIGHT
  24641 DEFB 0
+; Bullet data, this one is xpos,ypos in pixels
 @label=_PLAYER_BULLET_XPOS
  24642 DEFB 0
 @label=_PLAYER_BULLET_YPOS
@@ -1108,6 +1109,9 @@ b24615 DEFB 0
  24645 DEFB 25,235,201,205,251,114,58
 @label=_FIRE_PRESSED
  24652 DEFB 0
+; Spaceship direction. 0 means no spaceship in play.
+; 1 means one travelling left to right, -1 means one
+; travelling right to left
 @label=_SPACESHIP_DIRECTION
  24653 DEFB 0
 
@@ -1162,20 +1166,20 @@ c24703 DI            ; start here
  24740 CALL 25094    ; Update score shown onscreen
  24743 CALL 26566    ; Read keyboard, deal with ship and bullet repositioning
  24746 CALL 26038    ; Check if bullet has hit alien, kill alien if so
- 24749 LD A,(24615)  ; {If there are no aliens left
- 24752 OR A          ;  advance their starting position
- 24753 JP Z,24919    ;  ready for next screen}
- 24756 CALL 25708    ; ??? Removing this makes new lives appear at top over and over
- 24759 JR Z,24771    ;
- 24761 LD A,(24611)  ; Lives remaining
- 24764 OR A          ;
- 24765 JP Z,25160    ;
- 24768 CALL 25034    ;
+ 24749 LD A,(24615)  ; {If there are no aliens left advance their starting position
+ 24752 OR A          ;  on the next screen which is about to appear. The routine
+ 24753 JP Z,24919    ;  jumps back to #R24716}
+ 24756 CALL 25708    ; Collision detection???
+ 24759 JR Z,24771    ; No collision, jump over the "player hit" handling code
+ 24761 LD A,(24611)  ; {Player has been hit. If lives remaining is zero
+ 24764 OR A          ; jump straight to the game over code. Otherwise
+ 24765 JP Z,25160    ; redraw the lives left at top then carry on
+ 24768 CALL 25034    ; }
 *24771 CALL 25442    ; Spaceship something...
- 24774 CALL 24795    ;
- 24777 LD A,(24611)  ; Lives remaining
- 24780 OR A          ;
- 24781 JP Z,25160    ;
+ 24774 CALL 24795    ; Move a row of aliens along the screen
+ 24777 LD A,(24611)  ; {Check lives over again, since stuff has happened
+ 24780 OR A          ;  and it's possible the player has been hit
+ 24781 JP Z,25160    ;  in the meantime}
  24784 LD A,(24613)  ; {Have the aliens landed? Game over if they have.
  24787 OR A          ;
  24788 JP NZ,25160   ; }
@@ -1509,7 +1513,10 @@ c25228 LD A,(24593)   ; Pick up screen default attributes
 b25282 DEFB 0
 @label=_SPACESHIP_XPOS
  25283 DEFB 0
- 25284 DEFB 8,1,19,1,20,2
+ 25284 DEFB 8
+@label=_SPACESHIP_SOUND_PULSE
+ 25285 DEFB 1                    ; Toggled so the spaceship noise stutters
+ 25286 DEFB 19,1,20,2
  25290 DEFB 3,3,7,3,12,3,17,3
  25298 DEFB 21,3,2,4,7,4,12,4
  25306 DEFB 17,4,22,4,3,5,7,5
@@ -1530,76 +1537,102 @@ b25282 DEFB 0
  25426 DEFB 4,4,5,8,5,13,5,18
  25434 DEFB 5,22,5,21,6,20,7,255
 
-; Routine at 25442
+; Spaceship handler
 ;
+; First, is there a spaceship in play? If not we decide whether
+; we should create one based on the "random" number generator.
+; If yes, choose whether it's going left to right or right to
+; left. If no, we're done.
+;.
+; Otherwise, yes, there's a spaceship in play.
+;.
 ; Used by the routine at #R24703.
-c25442 LD A,(24653)  ;
- 25445 OR A          ;
- 25446 JR NZ,25488   ;
- 25448 LD A,(32057)  ;
- 25451 CP 255        ;
- 25453 RET NZ        ;
+@label=spaceship_handler
+c25442 LD A,(24653)  ; {Is there a spaceship in play?
+ 25445 OR A          ;  Jump forward if there is
+ 25446 JR NZ,25488   ; }
+ 25448 LD A,(32057)  ; {Introduce a new spaceship if
+ 25451 CP 255        ;  the cycling value is in the range
+ 25453 RET NZ        ;  65280 to 65305.
  25454 LD A,(32058)  ;
  25457 CP 25         ;
- 25459 RET NC        ;
- 25460 LD A,(32058)  ;
- 25463 BIT 0,A       ;
- 25465 JR Z,25477    ;
- 25467 LD A,1        ;
- 25469 LD (24653),A  ;
- 25472 XOR A         ;
- 25473 LD (25283),A  ;
+ 25459 RET NC        ; }
+ 25460 LD A,(32058)  ; {OK, new spaceship required. Which
+ 25463 BIT 0,A       ; direction should it go. Pick up low
+ 25465 JR Z,25477    ; bit of random number}
+ 25467 LD A,1        ; {New spaceship going left to right.
+ 25469 LD (24653),A  ; }
+ 25472 XOR A         ; {New spaceship starts at x=0
+ 25473 LD (25283),A  ; }
  25476 RET           ;
-*25477 LD A,255      ;
- 25479 LD (24653),A  ;
- 25482 LD A,233      ;
- 25484 LD (25283),A  ;
+@label=new_spaceship_leftwards
+*25477 LD A,255      ; {New spaceship going right to left.
+ 25479 LD (24653),A  ; }
+ 25482 LD A,233      ; {New spaceship starts at x=255 minus
+ 25484 LD (25283),A  ; the width of the graphic }
  25487 RET           ;
-*25488 LD A,(25285)  ;
- 25491 NEG           ;
- 25493 LD (25285),A  ;
- 25496 JP P,25628    ;
- 25499 LD IX,25283   ;
- 25503 LD A,(24653)  ;
- 25506 CP 1          ;
- 25508 JR Z,25524    ;
- 25510 LD HL,25286   ;
- 25513 DEC (IX+0)    ;
- 25516 XOR A         ;
- 25517 CP (IX+0)     ;
- 25520 JR NZ,25547   ;
- 25522 JR 25537      ;
-*25524 LD HL,25364   ;
- 25527 INC (IX+0)    ;
- 25530 LD A,234      ;
- 25532 CP (IX+0)     ;
- 25535 JR NZ,25547   ;
+@label=spaceship_in_play
+*25488 LD A,(25285)  ; {Two's comp this, so every other time
+ 25491 NEG           ;  we play the spaceship noise. That routine
+ 25493 LD (25285),A  ;  returns, so that's the end of this code.
+ 25496 JP P,25628    ; Every other other time we drop through
+                     ; and move the spaceship}
+ 25499 LD IX,25283   ; IX points to spaceship's xpos
+ 25503 LD A,(24653)  ; {Which way is it going? Jump if
+ 25506 CP 1          ; it's going left to right
+ 25508 JR Z,25524    ;}
+ 25510 LD HL,25286   ; Spaceship right to left sprite data
+ 25513 DEC (IX+0)    ; Move xpos one pixel leftwards
+ 25516 XOR A         ; {Has it reached left side 
+ 25517 CP (IX+0)     ;  of the screen? If not redraw
+ 25520 JR NZ,25547   ;  it}
+ 25522 JR 25537      ; Otherwise clear it off
+@label=spaceship_l_to_r
+*25524 LD HL,25364   ; Spaceship left to right sprite data
+ 25527 INC (IX+0)    ; Move xpos one pixel rightwards
+ 25530 LD A,234      ; {Has it reached right side of
+ 25532 CP (IX+0)     ;  the screen? If not redraw it.}
+ 25535 JR NZ,25547   ; Otherwise drop through to clear it
+; Clear the spaceship from the screen and clear the flag
+; saying there is one.
+;.
 ; This entry point is used by the routines at #R25592 and #R26225.
 @label=clear_spaceship
-*25537 XOR A         ;
- 25538 LD (24653),A  ;
- 25541 LD DE,16416   ; Row 1
- 25544 JP 26004      ; Clear row
+*25537 XOR A         ; {Set direction flag saying
+ 25538 LD (24653),A  ; no spaceship}
+ 25541 LD DE,16416   ; {Jump to clear spaceship
+ 25544 JP 26004      ; screen row, returns out of this code}
+; Redraw the spaceship. Jumped to with the correct spaceship
+; sprite data pointed to by HL.
+@label=redraw_spaceship
 *25547 LD A,1        ; Mode clear
- 25549 CALL 31960    ; Clear sprite
+ 25549 CALL 31960    ; Clear spaceship sprite
  25552 XOR A         ; Mode set
- 25553 CALL 31960    ; Draw sprite
- 25556 LD A,(24641)  ; {Return if no bullet in flight
- 25559 OR A          ;
+ 25553 CALL 31960    ; Draw spaceship sprite
+ 25556 LD A,(24641)  ; {All done if no bullet in flight,
+ 25559 OR A          ;  there can't have been a collision
  25560 RET Z         ; }
- 25561 LD IX,24642   ;
- 25565 LD A,(IX+1)   ;
- 25568 CP 16         ;
- 25570 RET NC        ;
- 25571 LD A,(25283)  ;
- 25574 CP (IX+0)     ;
- 25577 RET NC        ;
- 25578 ADD A,23      ;
- 25580 CP (IX+0)     ;
- 25583 RET C         ;
- 25584 CALL 25592    ;
- 25587 XOR A         ;
- 25588 LD (24653),A  ;
+; Check if player bullet has hit the spaceship. This checks the
+; bullet location against the spaceship location. If the bullet
+; location is greater than the spaceship's left side location,
+; and also less than the spaceship's right side location, it's
+; a hit.
+@label=spaceship_bullet_check
+ 25561 LD IX,24642   ; {Pick player bullet ypos
+ 25565 LD A,(IX+1)   ;  from player bullet data}
+ 25568 CP 16         ; {Has it reached the spaceship's row?
+ 25570 RET NC        ; Can't be a collision if it hasn't}
+ 25571 LD A,(25283)  ; {Compare bullet xpos with spaceship xpos.
+ 25574 CP (IX+0)     ;  Bullet has to be to the right of spaceship
+ 25577 RET NC        ;  for there to be a collision}
+ 25578 ADD A,23      ; A now contains xpos of right side of spaceship
+ 25580 CP (IX+0)     ; {Bullet location must be to the left
+ 25583 RET C         ;  side of that point for the spaceship to be hit.
+                     ; If it isn't the bullet isn't in the spaceship's
+                     ; width so we return.}
+ 25584 CALL 25592    ; {Otherwise it's a hit. Deal with it
+ 25587 XOR A         ; and set the spaceship flag to
+ 25588 LD (24653),A  ; "no spaceship"}
  25591 RET           ;
 
 ; Hit spaceship
@@ -3940,12 +3973,12 @@ b32056 DEFB 93
 
 ; Cycling value
 ;
-; This appears to be a value which is constantly incremented, and allowed
-; to cycle. The low byte is used to decide on the "random" bonus amount
-; for hitting a spaceship.
-@label=_CYCLING_VALUE_H
+; This is a value which is constantly incremented, and allowed
+; to cycle. It's used as "random" value to introduce the spaceship
+; and to decide bonus amount for hitting a spaceship.
+@label=_SPACESHIP_CYCLING_VALUE_H
 b32057 DEFB 108
-@label=_CYCLING_VALUE_L
+@label=_SPACESHIP_CYCLING_VALUE_L
  32058 DEFB 77
 
 ; Routine at 32059
