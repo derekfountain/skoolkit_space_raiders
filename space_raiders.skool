@@ -1105,10 +1105,13 @@ b24615 DEFB 0
  24642 DEFB 0
 @label=_PLAYER_BULLET_YPOS
  24643 DEFB 0
- 24644 DEFB 115
- 24645 DEFB 25,235,201,205,251,114,58
-@label=_FIRE_PRESSED
- 24652 DEFB 0
+; x,y pairs for up to 4 alien bullet screen locations.
+; The y value is set 0 when the entry in the array isn't
+; in use.
+@label=_ALIEN_BULLET_ARRAY
+ 24644 DEFB 0,0,0,0,0,0,0,0               ; Space for 4 alien bullets
+@label=_FIRE_PRESSED                      
+ 24652 DEFB 0                             ; Flag set 1 if fire has been pressed
 ; Spaceship direction. 0 means no spaceship in play.
 ; 1 means one travelling left to right, -1 means one
 ; travelling right to left
@@ -1705,34 +1708,48 @@ c25686 ADD A,L       ;
  25690 RET           ;
 
 ; Data block at 25691
-b25691 DEFB 0,0,0,0,0,0,0,1
+b25691 DEFB 0,0,0
+@label=_ALIEN_BULLET_SOMETHING_COUNTER
+ 25694 DEFB 0
+; The bullet is a 6 pixel high straight line, same as
+; the player's bullet
+@label=_GFX_ALIEN_BULLET
+ 25695 DEFB 0,0,0,1
  25699 DEFB 0,2,0,3,0,4,0,5
  25707 DEFB 255
 
 ; Routine at 25708
 ;
 ; Used by the routine at #R24703.
-c25708 LD A,4        ;
+c25708 LD A,4        ; Up to 4 alien bullets in play
  25710 LD (25694),A  ;
- 25713 LD IX,24644   ;
-*25717 LD A,(IX+1)   ;
- 25720 OR A          ;
- 25721 JR Z,25728    ;
+ 25713 LD IX,24644   ; Alien bullet array, x,y entries
+*25717 LD A,(IX+1)   ; {Jump if this bullet slot
+ 25720 OR A          ; isn't in use
+ 25721 JR Z,25728    ; }
  25723 CALL 25853    ;
  25726 JR 25731      ;
+@label=slot_not_in_use
 *25728 CALL 25749    ;
 *25731 CALL 25737    ;
  25734 JR NZ,25717   ;
  25736 RET           ;
 
-; Routine at 25737
+; Advance IX to point to next alien bullet slot
 ;
+; IX enters pointing to an alien bullet structure. It's advanced
+; one such structure. The value at #R25694 is decremented.
+;.
 ; Used by the routines at #R25708 and #R25976.
-c25737 INC IX        ;
- 25739 INC IX        ;
- 25741 LD A,(25694)  ;
+;
+; I:IX Pointer to alien bullet structure
+; O:IX Pointer to next alien bullet structure
+@label=next_alien_bullet
+c25737 INC IX        ; {Alien bullet structure is
+ 25739 INC IX        ;  just 2 bytes long}
+ 25741 LD A,(25694)  ; {Decrement this
  25744 DEC A         ;
- 25745 LD (25694),A  ;
+ 25745 LD (25694),A  ; }
  25748 RET           ;
 
 ; Routine at 25749
@@ -1849,7 +1866,7 @@ c25853 LD HL,25695                  ;
 c25976 LD A,4        ;
  25978 LD (25694),A  ;
 ; This entry point is used by the routine at #R25853.
- 25981 LD IX,24644   ;
+ 25981 LD IX,24644   ; Alien bullet array, 4 slots, x,y entries
 *25985 CALL 26020    ;
  25988 CALL 25737    ;
  25991 JR NZ,25985   ;
@@ -1891,32 +1908,44 @@ c26004 LD C,8        ; We're going to clear 8 scans at screen address in DE
  26017 JR NZ,26007   ;
  26019 RET           ;
 
-; Routine at 26020
+; Remove alien bullet
 ;
+; Alien bullet which has been intercepted by the player's bullet,
+; or has hit a barrier, is cleared. The bullet sprite is drawn
+; in clear mode and the entry in the alien bullet array is
+; zeroed.
+;.
 ; Used by the routines at #R25976 and #R26490.
-c26020 LD A,(IX+1)   ;
+;
+; I:IX Pointer to alien bullet which has been intercepted
+@label=clear_alien_bullet_sprite
+c26020 LD A,(IX+1)   ; A contains alien bullet ypos
 ; This entry point is used by the routine at #R25853.
- 26023 OR A          ;
- 26024 RET Z         ;
- 26025 LD HL,25695   ;
+ 26023 OR A          ; {Return if alien bullet slow not in use
+ 26024 RET Z         ; }
+ 26025 LD HL,25695   ; Alien bullet sprite data
  26028 LD A,1        ; Mode clear
  26030 CALL 31960    ; Clear sprite
 ; This entry point is used by the routine at #R25853.
-*26033 LD (IX+1),0   ;
+*26033 LD (IX+1),0   ; Alien bullet gone
  26037 RET           ;
 
-; Alien hit?
+; Has an alien been hit?
 ;
 ; Check if there's a bullet in flight. If not return immediately. If there is,
 ; call the collision detection routine.
-;
+;.
 ; Used by the routine at #R24703.
 @label=is_alien_hit
 c26038 LD A,(24641)  ; {Return if no bullet in flight
  26041 OR A          ;
  26042 RET Z         ; }
- 26043 CALL 26049    ;
- 26046 JP 26490      ;
+ 26043 CALL 26049    ; A bullet is in flight so check if it's hit an alien.
+                     ; This goes right down into the code which destroys the
+                     ; alien, draws the explosion, increases score, etc.
+ 26046 JP 26490      ; Jump to code which sorts out the alien data. Eventually
+                     ; that code RETs which take us back to where this routine
+                     ; was called from (the main loop)
 
 ; Bullet and alien collision check, Y axis
 ;
@@ -1953,6 +1982,13 @@ b26097 DEFB 0,0
 ; So a green alien, worth 20, would put 2 in here.
 @label=_HIT_ALIEN_ROW
  26099 DEFB 0
+; Looks like a bug here. #R26100 should be 2 bytes of storage
+; for the bullet cy,cx location at the point of making the
+; alien explode, but #R26101 shares that second
+; byte. Clearly the temp store thing doesn't clash with the
+; bullet location information otherwise the explosion would
+; appear in the wrong place.
+@label=_EXPLOSION_CY_CX
  26100 DEFB 0
 ; Y axis collision code stores A register here
 @label=_COLL_YAXIS_TEMP_STORE
@@ -2050,10 +2086,10 @@ c26154 LD (26097),A  ;
 ; I:IX Alien structure, I think
 @label=alien_hit
 c26225 CALL 26320                    ;
- 26228 LD HL,26106                   ; {Top char row of explosion graphic
- 26231 LD (26102),HL                 ; }
- 26234 LD HL,26122                   ; {Bottom char row of explsion graphic
- 26237 LD (26104),HL                 ; }
+ 26228 LD HL,26106                   ; {Puts #R26106 into #R26102. Top char
+ 26231 LD (26102),HL                 ;  row of explosion graphic}
+ 26234 LD HL,26122                   ; {Put #R26122 into #R26104. Bottom char
+ 26237 LD (26104),HL                 ;  row of explosion graphic}
  26240 CALL 26337                    ;
  26243 CALL 26947                    ;
  26246 CALL 31987                    ; Sound burbler
@@ -2110,8 +2146,12 @@ c26320 LD B,32       ;
 ; An alien has been hit. Replace its graphic with the explosion graphic.
 ; .
 ; Used by the routine at #R26225.
+;
+; I: #R26102 Points to explosion graphic, top half, 2 UDGs wide
+; I: #R26104 Points to explosion graphic, bottom half, 2 UDGs wide
 @label=draw_alien_explosion
 c26337 LD BC,(26100) ; Bullet cy,cx, that's the explosion place
+                     ; 26101 is ypos, goes into B, 26100 is xpos goes into C
  26341 CALL 32254    ; cxy2saddr: DE = screen address of char C,B
  26344 LD HL,(26102) ; Pick up top row of graphic to draw
  26347 CALL 26361    ; Call down to draw the top 2 chars of explosion
@@ -2220,47 +2260,64 @@ c26484 ADD A,L       ;
  26487 INC H         ;
  26488 RET           ;
 
-; Unused
+; Move bullet temp
+@label=_MOVE_BULLET_LOOP
 s26489 DEFS 1
 
-; Routine at 26490
+; Player bullet interception detection
 ;
+; Check whether the player's bullet has hit an alien bullet. There are
+; up to 4 alien bullets in play, so loop over them and check their
+; screen locations. If there's a hit, play the click sound and remove
+; the bullets from screen.
+;.
+; If there's no such interception jump off to the routine which checks
+; whether the player's bullet has hit the underside of a barrier.
+;.
 ; Used by the routine at #R26038.
-c26490 LD IX,24644           ;
- 26494 LD A,4                ;
- 26496 LD (26489),A          ;
- 26499 LD BC,(24642)         ;
-; This entry point is used by the routine at #R26541.
-*26503 LD A,(IX+1)           ;
- 26506 OR A                  ;
- 26507 JR Z,26541            ;
- 26509 LD A,(IX+0)           ;
- 26512 CP C                  ;
- 26513 JR NZ,26541           ;
- 26515 LD A,(IX+1)           ;
- 26518 SUB B                 ;
- 26519 NEG                   ;
- 26521 CP 6                  ;
- 26523 JR NC,26541           ;
- 26525 CALL 26020            ;
+@label=bullet_intercept_detect
+c26490 LD IX,24644           ; Alien bullet array, 4 slots, x,y entries
+ 26494 LD A,4                ; {Loop 4 times, once for each alien bullet
+ 26496 LD (26489),A          ; }
+ 26499 LD BC,(24642)         ; C=xpos, B=ypos of player bullet
+*26503 LD A,(IX+1)           ; {Alien bullet ypos, a zero value is
+ 26506 OR A                  ;  used to indicate this bullet isn't in flight.
+ 26507 JR Z,26541            ;  Skip slot if not used.}
+ 26509 LD A,(IX+0)           ; {Pick up alien bullet xpos. Compare to player 
+ 26512 CP C                  ;  bullet xpos, jump forward if it's not the same
+ 26513 JR NZ,26541           ;  since it can't be an intercept}
+; Alien bullets locations are stored upside down. i.e. the x,y pos on
+; screen is the top of the bullet, not the leading point which is the
+; bottom as drawn. So this ypos check is a bit fiddly.
+ 26515 LD A,(IX+1)           ; {Pick up player bullet ypos again, subtract
+ 26518 SUB B                 ;  player bullet ypos, take 2s comp
+ 26519 NEG                   ;  and compare with 6 (bullet length). NC
+ 26521 CP 6                  ;  means no hit.
+ 26523 JR NC,26541           ; }
+; Intercept!
+@label=alien_bullet_intercepted
+ 26525 CALL 26020            ; Clears alien bullet
  26528 CALL 31987            ; Sound burbler
  26531 DEFB 4,24,8,12,16,6,0 ; Hit alien bullet sound
- 26538 JP 26947              ; Sound burbler return point
-
-; Routine at 26541
-;
-; Used by the routine at #R26490.
-c26541 INC IX        ;
- 26543 INC IX        ;
- 26545 LD A,(26489)  ;
- 26548 DEC A         ;
- 26549 LD (26489),A  ;
- 26552 JR NZ,26503   ;
- 26554 LD BC,(24642) ;
- 26558 DEC B         ;
- 26559 CALL 31527    ;
- 26562 RET Z         ;
- 26563 JP 26947      ;
+ 26538 JP 26947              ; Jump to clear player bullet. The
+                             ; return exits this routine, which is
+                             ; fine since there's no player bullet now.
+; Alien bullet and player bullet haven't intecepted, so
+; check the next alien bullet.
+@label=not_hit_player_bullet
+ 26541 INC IX                ; Next alien bullet
+ 26543 INC IX                ;
+ 26545 LD A,(26489)          ; {Back to check next alien
+ 26548 DEC A                 ;  bullet for interception
+ 26549 LD (26489),A          ; 
+ 26552 JR NZ,26503           ; }
+; If we get here the player's bullet hasn't intercepted an alien
+; bullet, so we need to check if the player's bullet hit a barrier
+ 26554 LD BC,(24642)         ; {Player bullet y,x in BC, move
+ 26558 DEC B                 ;  player bullet up the screen a pixel}
+ 26559 CALL 31527            ; Check whether the player's bullet hit a barrier
+ 26562 RET Z                 ; {Return with Z mean no barrier collision,
+ 26563 JP 26947              ;  otherwise clear the player's bullet}
 
 ; Handle player inputs.
 ;
@@ -2432,8 +2489,8 @@ b26722 DEFB 10,0,9,1,1,2,9
  26849 DEFB 0,4,5,4,17,4,0,5
  26857 DEFB 0,6,5,6,17,6,0,7
  26865 DEFB 6,7,18,7,255
-; This looks like a vertical line, might be a bullet?
-@label=_GFX_BULLET
+; 6 pixel high straight line, same as alien bullet
+@label=_GFX_PLAYER_BULLET
  26870 DEFB 0
  26871 DEFB 0,0,1
  26874 DEFB 0,2,0,3,0,4,0,5
@@ -3673,9 +3730,18 @@ b31509 DEFB 0,0,254,0,255,0,1,0
  31517 DEFB 2,0,255,255,1,255,255,1
  31525 DEFB 1,1
 
-; Routine at 31527
+; Not sure... Might be the bullet hitting barrier detection?
+;
+; This is called when an alien bullet hits a barrier.
+; But it's call from a point I think is where routine which animates the player's bullet.
+; It returns with Z flag set if the bullet hit something? Like
+; a barrier?
+;.
+; Not sure what this is, but removing it stops the player's bullet
+; flying up the screen. It seems to return a value in the Z flag
 ;
 ; Used by the routines at #R25853 and #R26541.
+@label=bullet_barrier_check
 c31527 LD A,(24610)  ; {Return immediately if the barriers are suppressed
  31530 OR A          ;
  31531 RET Z         ; }
@@ -3719,10 +3785,11 @@ c31527 LD A,(24610)  ; {Return immediately if the barriers are suppressed
  31624 DEFB 4,20     ; ???
  31626 INC B         ;
  31627 LD E,0        ;
- 31629 OR 1          ;
- 31631 RET           ;
-*31632 XOR A         ;
- 31633 RET           ;
+; Sound burbler return point
+ 31629 OR 1          ; {Z flag reset
+ 31631 RET           ;}
+*31632 XOR A         ; {A=0, Z flag set
+ 31633 RET           ; }
 
 ; Set pixel
 ;
@@ -4097,7 +4164,7 @@ b32174 DEFB 126,126
 ; I:B ypos char
 ; O:DE Screen address
 @label=cxy2saddr
-c32254 LD D,B        ; {No idea how this is working. asm_zx_cxy2saddr in z88dk
+c32254 LD D,B        ; {Early implementation of this function. asm_zx_cxy2saddr in z88dk
  32255 XOR A         ; is more efficient
  32256 RR B          ;
  32258 RRA           ;
