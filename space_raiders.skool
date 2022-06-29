@@ -1709,7 +1709,8 @@ c25686 ADD A,L       ;
 
 ; Data block at 25691
 b25691 DEFB 0,0,0
-@label=_ALIEN_BULLET_SOMETHING_COUNTER
+; Loop counter used for alien bullet iterations
+@label=_ALIEN_BULLET_COUNTER
  25694 DEFB 0
 ; The bullet is a 6 pixel high straight line, same as
 ; the player's bullet
@@ -1722,18 +1723,18 @@ b25691 DEFB 0,0,0
 ;
 ; Used by the routine at #R24703.
 c25708 LD A,4        ; Up to 4 alien bullets in play
- 25710 LD (25694),A  ;
+ 25710 LD (25694),A  ; Use this generic loop counter
  25713 LD IX,24644   ; Alien bullet array, x,y entries
 *25717 LD A,(IX+1)   ; {Jump if this bullet slot
  25720 OR A          ; isn't in use
  25721 JR Z,25728    ; }
  25723 CALL 25853    ;
- 25726 JR 25731      ;
+ 25726 JR 25731      ; Jump forward to get next bullet
 @label=slot_not_in_use
 *25728 CALL 25749    ;
-*25731 CALL 25737    ;
- 25734 JR NZ,25717   ;
- 25736 RET           ;
+*25731 CALL 25737    ; {Move to next alien bullet, update
+ 25734 JR NZ,25717   ;  the generic loop counter
+ 25736 RET           ; }
 
 ; Advance IX to point to next alien bullet slot
 ;
@@ -1744,13 +1745,14 @@ c25708 LD A,4        ; Up to 4 alien bullets in play
 ;
 ; I:IX Pointer to alien bullet structure
 ; O:IX Pointer to next alien bullet structure
+; O: Z flag set when last bullet is cleared
 @label=next_alien_bullet
 c25737 INC IX        ; {Alien bullet structure is
  25739 INC IX        ;  just 2 bytes long}
- 25741 LD A,(25694)  ; {Decrement this
- 25744 DEC A         ;
- 25745 LD (25694),A  ; }
- 25748 RET           ;
+ 25741 LD A,(25694)  ; {#R25694 is used as a bullet
+ 25744 DEC A         ;  loop index in several bits of
+ 25745 LD (25694),A  ;  code}
+ 25748 RET           ; Z flag will be set when loop is done
 
 ; Routine at 25749
 ;
@@ -1802,82 +1804,103 @@ c25749 CALL 32059    ;
  25849 LD (IX+0),A   ;
  25852 RET           ;
 
-; Routine at 25853
+; Move alien bullet
 ;
 ; Used by the routine at #R25708.
-c25853 LD HL,25695                  ;
+;
+; I:IX Points to an alien bullet structure
+@label=move_alien_bullet
+c25853 LD HL,25695                  ; Alien bullet graphic
  25856 LD A,1                       ; Mode clear
- 25858 CALL 31960                   ; Clear sprite
- 25861 LD A,(IX+1)                  ;
- 25864 INC A                        ;
- 25865 CP 185                       ;
- 25867 JP NC,26033                  ;
- 25870 CP 177                       ;
- 25872 JP NC,25901                  ;
+ 25858 CALL 31960                   ; Clear alien bullet
+ 25861 LD A,(IX+1)                  ; Alien bullet ypos
+ 25864 INC A                        ; Move down screen
+ 25865 CP 185                       ; Got to the bottom?
+ 25867 JP NC,26033                  ; Bullet done with, jump out of here and reset the slot
+ 25870 CP 177                       ; Got to the player ship level?
+ 25872 JP NC,25901                  ; Skip barrier checks???
 ; This entry point is used by the routine at #R25994.
-*25875 LD (IX+1),A                  ;
- 25878 ADD A,5                      ;
- 25880 LD B,A                       ;
- 25881 LD C,(IX+0)                  ;
+*25875 LD (IX+1),A                  ; Alien bullet ypos
+ 25878 ADD A,5                      ; Tip of bullet as it heads downwards
+ 25880 LD B,A                       ; {Leading tip of bullet screen
+ 25881 LD C,(IX+0)                  ;  location is in BC}
  25884 PUSH IX                      ;
- 25886 CALL 31527                   ;
+ 25886 CALL 31527                   ; Not sure
  25889 POP IX                       ;
- 25891 JP NZ,26033                  ;
- 25894 LD HL,25695                  ;
+ 25891 JP NZ,26033                  ; Z flag from that subroutine means bullet is gone
+ 25894 LD HL,25695                  ; Alien bullet graphic
  25897 XOR A                        ; Mode set
- 25898 JP 31960                     ; Draw sprite
-*25901 LD A,(IX+0)                  ;
- 25904 LD B,A                       ;
+ 25898 JP 31960                     ; Draw sprite, jumping out of this routine
+; The alien bullet has got to the player ship level.
+; Is the player ship hit?
+*25901 LD A,(IX+0)                  ; Pick up alien bullet xpos
+ 25904 LD B,A                       ; Stash in B
  25905 LD A,(24638)                 ; Player ship pos, X
- 25908 CP B                         ;
- 25909 JR NC,25994                  ;
- 25911 ADD A,19                     ;
- 25913 CP B                         ;
- 25914 JR C,25994                   ;
- 25916 XOR A                        ;
- 25917 LD (24638),A                 ; Player ship pos, X
- 25920 LD B,8                       ;
+ 25908 CP B                         ; {Left of player ship, no hit,
+ 25909 JR NC,25994                  ; so jump out to redraw bullet}
+ 25911 ADD A,19                     ; Right xpos side of player ship
+ 25913 CP B                         ; {Right of player ship, no hit,
+ 25914 JR C,25994                   ; so jump out to redraw bullet}
+ 25916 XOR A                        ; {Player hit. Set player ship xpos
+ 25917 LD (24638),A                 ; back to left side}
+; Player has been hit, sound the siren
+ 25920 LD B,8                       ; 8 iterations of the siren
+@label=player_hit_siren
 *25922 LD A,(23624)                 ; Pick up port 254 shadow
- 25925 ADD A,8                      ; ???
- 25927 AND 56                       ; Mask out bottom 3 bits, border black
+ 25925 ADD A,8                      ; Cycle border colour
+ 25927 AND 56                       ; Mask out bottom 3 bits
  25929 LD (23624),A                 ; Put it back
  25932 CALL 31987                   ; Sound burbler
  25935 DEFB 40,10,40,20,40,40,40,80 ; {Player hit noise
  25943 DEFB 0                       ; }
-; Sound burbler return point
  25944 DJNZ 25922                   ; Repeat player hit *8
+; Restart with next life
  25946 CALL 26001                   ; Clear bottom row
  25949 CALL 31987                   ; Sound burbler
- 25952 DEFB 50,255,255,50,50,255,0  ; Game over sound No, can't be, the check
-                                    ; is below
-; Sound burbler return point
- 25959 LD A,(24611)                 ; {Lives remaining Lost life?
- 25962 DEC A                        ;
- 25963 LD (24611),A                 ; }
- 25966 CALL NZ,26965                ;
- 25969 CALL 25976                   ;
- 25972 OR 1                         ;
+ 25952 DEFB 50,255,255,50,50,255,0  ; About to restart sound
+ 25959 LD A,(24611)                 ; Decrement lives remaining
+ 25962 DEC A                        ; This would be the infinite lives poke
+ 25963 LD (24611),A                 ; 
+ 25966 CALL NZ,26965                ; Not zero, so next player ship
+; All alien bullets are cleared when a new life is started
+ 25969 CALL 25976                   ; Clear all alien bullets
+ 25972 OR 1                         ; Reset Z flag
  25974 POP HL                       ;
  25975 RET                          ;
 
-; Routine at 25976
+; Clear alien bullets
 ;
+; The array of alien bullets contains 4 slots. This clears each
+; slot which is in use, removing the sprite from the screen.
+; Bit of a funny way of doing it, using an external value as a
+; loop counter and a separate routine to move to the next slot
+; and decrement the counter.
+;.
 ; Used by the routines at #R25853 and #R26225.
-c25976 LD A,4        ;
- 25978 LD (25694),A  ;
+@label=clear_alien_bullets
+c25976 LD A,4        ; {Loop over the 4 slots
+ 25978 LD (25694),A  ;}
 ; This entry point is used by the routine at #R25853.
  25981 LD IX,24644   ; Alien bullet array, 4 slots, x,y entries
-*25985 CALL 26020    ;
- 25988 CALL 25737    ;
- 25991 JR NZ,25985   ;
+*25985 CALL 26020    ; Clear slot of active bullet, remove sprite
+ 25988 CALL 25737    ; {This move to the next bullet slot and 
+ 25991 JR NZ,25985   ; decrements the counter at #R25694.}
  25993 RET           ;
 
-; Routine at 25994
+; Increment alien bullet position
 ;
+; Alien bullet position is incremented to move it down the
+; screen one pixel, then we jump back to the  clear and redraw
+; routine.
+;.
 ; Used by the routine at #R25853.
-c25994 LD A,(IX+1)   ;
- 25997 INC A         ;
- 25998 JP 25875      ;
+;
+; I:IX Alien bullet structure
+@label=inc_alien_bullet_pos
+c25994 LD A,(IX+1)   ; Alien bullet xpos
+ 25997 INC A         ; Increment it
+ 25998 JP 25875      ; This writes in the new ypos
+                     ; value, checks for collisions, etc
 
 ; Clear bottom character row
 ;
