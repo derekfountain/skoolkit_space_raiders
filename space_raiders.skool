@@ -1134,7 +1134,7 @@ b24654 DEFB 1        ; Speed factor
 ; Some sort of init block
 ;
 ; This 39 byte data block is copied from here to #R24615
-; at the start of each game. I don't know what it is.
+; at the start of each game. I don't know what it is. ???
 @label=_INIT_BLOCK_UNKNOWN
 b24664 DEFB 55,11,11,11
  24668 DEFB 11,11,5,5,5,5,5,5
@@ -1144,26 +1144,27 @@ b24664 DEFB 55,11,11,11
  24700 DEFB 0,0,0
 
 ; Start of game, from LOADer and new game loop
-;
-; Used by the routine at #R25160.
 @label=start
-c24703 DI            ; start here
+c24703 DI            ; Start here
  24704 CALL 24823    ; Game data initialisation, copies 10 bytes
  24707 CALL 32287    ; Clear screen pixels
  24710 CALL 24989    ; Reset score, maybe update high score from last
                      ; High score is only updated when new game starts
                      ; which seems a tad unfair
  24713 CALL 25034    ; Draw lives as ships on top row
-; This entry point is used by the routine at #R24919. Top of new screen loop?
+; Top of new screen loop. This entry point is used by the routine at #R24919
+; which advances the aliens one row when a screen has been cleared. It then
+; jumps back to here to start the next screen.
 @label=new_screen_loop
-*24716 CALL 24835    ;
- 24719 CALL 24806    ;
+*24716 CALL 24835    ; {Call a sequence of subroutines to intialise
+ 24719 CALL 24806    ;  the game's data structures
  24722 CALL 27030    ;
- 24725 CALL 25228    ;
- 24728 CALL 26965    ;
- 24731 CALL 31436    ;
- 24734 CALL 31075    ;
-; This entry point is used by the routine at #R24868.
+ 24725 CALL 25228    ; }
+ 24728 CALL 26965    ; {Draw the components of the game
+ 24731 CALL 31436    ;  then enter the main loop
+ 24734 CALL 31075    ; }
+; Game loop, read keyboard, move player, move bullets, zap aliens, etc.,
+; until player is hit.
 @label=game_loop
 *24737 CALL 25105    ; Consider awarding extra life
  24740 CALL 25094    ; Update score shown onscreen
@@ -1172,13 +1173,14 @@ c24703 DI            ; start here
  24749 LD A,(24615)  ; {If there are no aliens left advance their starting position
  24752 OR A          ;  on the next screen which is about to appear. The routine
  24753 JP Z,24919    ;  jumps back to #R24716}
- 24756 CALL 25708    ; Collision detection???
+ 24756 CALL 25708    ; Advance alien bullets down the screen
  24759 JR Z,24771    ; No collision, jump over the "player hit" handling code
  24761 LD A,(24611)  ; {Player has been hit. If lives remaining is zero
  24764 OR A          ; jump straight to the game over code. Otherwise
  24765 JP Z,25160    ; redraw the lives left at top then carry on
  24768 CALL 25034    ; }
-*24771 CALL 25442    ; Spaceship something...
+*24771 CALL 25442    ; Spaceship code, create one, move one, check
+                     ; whether it's been hit
  24774 CALL 24795    ; Move a row of aliens along the screen
  24777 LD A,(24611)  ; {Check lives over again, since stuff has happened
  24780 OR A          ;  and it's possible the player has been hit
@@ -1231,7 +1233,7 @@ c24823 LD HL,24654   ; Initialisation data
 ; Routine at 24835
 ;
 ; Used by the routine at #R24703.
-@label=init_of_some_sort
+@label=dont_know2_init_of_some_sort
 c24835 LD HL,24664   ; { Copy this block of data
  24838 LD DE,24615   ;   into what looks like the
  24841 LD BC,39      ;   game's rumtime data
@@ -1547,7 +1549,7 @@ b25282 DEFB 0
 ; If yes, choose whether it's going left to right or right to
 ; left. If no, we're done.
 ;.
-; Otherwise, yes, there's a spaceship in play.
+; Otherwise, yes, there's a spaceship in play. ???
 ;.
 ; Used by the routine at #R24703.
 @label=spaceship_handler
@@ -1719,19 +1721,24 @@ b25691 DEFB 0,0,0
  25699 DEFB 0,2,0,3,0,4,0,5
  25707 DEFB 255
 
-; Routine at 25708
+; Move alien bullets.
 ;
+; Loop over the alien bullet structures, calling the
+; #R25853 routine for each one that's in use.
+;.
 ; Used by the routine at #R24703.
+@label=move_alien_bullets
 c25708 LD A,4        ; Up to 4 alien bullets in play
  25710 LD (25694),A  ; Use this generic loop counter
  25713 LD IX,24644   ; Alien bullet array, x,y entries
 *25717 LD A,(IX+1)   ; {Jump if this bullet slot
  25720 OR A          ; isn't in use
  25721 JR Z,25728    ; }
- 25723 CALL 25853    ;
+ 25723 CALL 25853    ; Move this alien bullet
  25726 JR 25731      ; Jump forward to get next bullet
 @label=slot_not_in_use
 *25728 CALL 25749    ;
+@label=next_bullet
 *25731 CALL 25737    ; {Move to next alien bullet, update
  25734 JR NZ,25717   ;  the generic loop counter
  25736 RET           ; }
@@ -1757,6 +1764,7 @@ c25737 INC IX        ; {Alien bullet structure is
 ; Routine at 25749
 ;
 ; Used by the routine at #R25708.
+@label=dont_know1
 c25749 CALL 32059    ;
  25752 LD A,(32055)  ;
  25755 LD B,A        ;
@@ -1806,6 +1814,12 @@ c25749 CALL 32059    ;
 
 ; Move alien bullet
 ;
+; Move an alien bullet down screen. Clear the sprite from its current
+; location, and if it's gone off the bottom then return. Otherwise
+; call the routine which checks and deals with bullets hitting a
+; barrier. If it hasn't hit a barrier check whether it's hit the player.
+; If it has, that's the next-player-life point.
+;.
 ; Used by the routine at #R25708.
 ;
 ; I:IX Points to an alien bullet structure
@@ -1817,22 +1831,27 @@ c25853 LD HL,25695                  ; Alien bullet graphic
  25864 INC A                        ; Move down screen
  25865 CP 185                       ; Got to the bottom?
  25867 JP NC,26033                  ; Bullet done with, jump out of here and reset the slot
- 25870 CP 177                       ; Got to the player ship level?
- 25872 JP NC,25901                  ; Skip barrier checks???
+ 25870 CP 177                       ; Got to below the barriers?
+ 25872 JP NC,25901                  ; Skip barrier checks
+; Check whether the alien bullet has hit a barrier
+;.
 ; This entry point is used by the routine at #R25994.
-*25875 LD (IX+1),A                  ; Alien bullet ypos
+@label=has_alien_hit_barrier
+*25875 LD (IX+1),A                  ; Update alien bullet ypos
  25878 ADD A,5                      ; Tip of bullet as it heads downwards
  25880 LD B,A                       ; {Leading tip of bullet screen
  25881 LD C,(IX+0)                  ;  location is in BC}
- 25884 PUSH IX                      ;
- 25886 CALL 31527                   ; Not sure
- 25889 POP IX                       ;
- 25891 JP NZ,26033                  ; Z flag from that subroutine means bullet is gone
- 25894 LD HL,25695                  ; Alien bullet graphic
- 25897 XOR A                        ; Mode set
- 25898 JP 31960                     ; Draw sprite, jumping out of this routine
+ 25884 PUSH IX                      ; {Call subroutine to check whether alien bullet
+ 25886 CALL 31527                   ;  has hit a barrier. Z flag set on return
+ 25889 POP IX                       ;  means it hasn't, NZ means it has}
+ 25891 JP NZ,26033                  ; Z flag from that subroutine means
+                                    ; bullet still in flight. Otherwise clear it.
+ 25894 LD HL,25695                  ; {Bullet still in flight, above player
+ 25897 XOR A                        ;  and not hit a barrier. Draw bullet
+ 25898 JP 31960                     ;  sprite, jumping out of this routine}
 ; The alien bullet has got to the player ship level.
 ; Is the player ship hit?
+@label=has_alien_hit_player
 *25901 LD A,(IX+0)                  ; Pick up alien bullet xpos
  25904 LD B,A                       ; Stash in B
  25905 LD A,(24638)                 ; Player ship pos, X
@@ -1842,7 +1861,8 @@ c25853 LD HL,25695                  ; Alien bullet graphic
  25913 CP B                         ; {Right of player ship, no hit,
  25914 JR C,25994                   ; so jump out to redraw bullet}
  25916 XOR A                        ; {Player hit. Set player ship xpos
- 25917 LD (24638),A                 ; back to left side}
+ 25917 LD (24638),A                 ; back to left side ready for
+                                    ; restart with next life}
 ; Player has been hit, sound the siren
  25920 LD B,8                       ; 8 iterations of the siren
 @label=player_hit_siren
@@ -2106,7 +2126,7 @@ c26154 LD (26097),A  ;
 ;.
 ; Used by the routine at #R26049.
 ;
-; I:IX Alien structure, I think
+; I:IX Alien structure, I think???
 @label=alien_hit
 c26225 CALL 26320                    ;
  26228 LD HL,26106                   ; {Puts #R26106 into #R26102. Top char
@@ -2149,7 +2169,7 @@ c26225 CALL 26320                    ;
 ; Starting with the alien structure for the alien which has been hit, zero
 ; bytes 2 and 3, then move on 22 bytes and repeat 32 times.
 ; .
-; I've no idea why as yet
+; I've no idea why as yet???
 ; .
 ; Used by the routine at #R26225.
 ;
@@ -2201,6 +2221,7 @@ c26337 LD BC,(26100) ; Bullet cy,cx, that's the explosion place
 ; Routine at 26375
 ;
 ; Used by the routine at #R26225.
+@label=dont_know3
 c26375 LD HL,24616   ;
  26378 LD A,(26099)  ;
  26381 CALL 26484    ;
@@ -2538,7 +2559,7 @@ c26883 CALL 31987                ; Sound burbler
 ; Draw the player bullet.
 ;
 ; The bullet graphic is cleared from the screen and drawn back in again. ???
-; Still not sure what the sub4 thing is.
+; Still not sure what the sub4 thing is. ???
 ;
 ; Used by the routine at #R26566.
 @label=draw_player_bullet
@@ -2556,7 +2577,7 @@ c26916 LD IX,24642   ;
  26943 XOR A         ; Mode set
  26944 JP 31960      ; Draw sprite
 
-; Stop player bullet
+; Clear player bullet
 ;
 ; Player bullet is cleared from screen and the flag indicating there's a bullet
 ; in flight is cleared.
@@ -2637,7 +2658,7 @@ s27029 DEFS 1
 
 ; Initialise alien data
 ;
-; Not much clue what this is doing
+; Not much clue what this is doing ???
 ;
 ; Used by the routine at #R24703.
 @label=init_aliens
@@ -2669,7 +2690,7 @@ c27030 LD A,(24614)  ;
  27093 JP P,27053    ;
  27096 RET           ;
 
-; IX = 27327 + ( 'A' * 706 )
+; IX = 27327 + ( 'A' * 706 ) ???
 ;
 ; Guessing this is finding an entry in an array of data structures which are
 ; 706 bytes? That would be too big for the aliens?
@@ -3318,7 +3339,7 @@ b30760 DEFB 140,54,0,33,61,140,195,139
  30848 DEFB 0,0,0,0,0,1,1,0
  30856 DEFB 33
 
-; Move aliens
+; Move aliens ???
 ;
 ; March the aliens along and down
 ;.
@@ -3388,7 +3409,7 @@ c30857 LD A,(24632)  ; Pick up this
  30991 LD (24632),A  ;
  30994 RET           ;
 
-; Move aliens down
+; Move aliens down ???
 ;
 ; Aliens have got to one side of the screen, move them down row by row. If
 ; they've got to the level of the barriers, remove the barriers. If they've got
@@ -3444,7 +3465,7 @@ c30995 CALL 31987       ; Sound burbler
 @label=init_draw_aliens
 c31075 LD A,4                       ;
 *31077 LD (24632),A                 ;
- 31080 CALL 27097                   ; IX = 27327 + ( 'A' * 706 )
+ 31080 CALL 27097                   ; IX = 27327 + ( 'A' * 706 ) ???
  31083 CALL 31119                   ;
  31086 CALL 31198                   ;
  31089 CALL 31987                   ; Sound burbler, row of aliens appearing
@@ -3455,7 +3476,6 @@ c31075 LD A,4                       ;
  31103 JP P,31077                   ;
  31106 RET                          ;
 
-; Unused
 @label=_TEMP_IX_STASH
 s31107 DEFS 2
 @label=_NEXT_ALIEN_ROW_TO_DRAW
@@ -3475,7 +3495,7 @@ b31109 DEFB 0                       ; Next screen row to populate with aliens
 @label=_SPRITE_DRAW_SCAN_COUNTER
  31118 DEFB 0
 
-; Find alien row data
+; Find alien row data ???
 ;
 ; Routine at 31119
 ; .
@@ -3693,11 +3713,9 @@ t31424 DEFM "0000",0
 @label=_BARRIER_BOTTOM
 t31429 DEFM "5345",0
 
-; Unused
 @label=_DRAW_BARRIER_COUNT
 s31434 DEFS 1
 
-; Unused
 @label=_BARRIER_ROWS_TO_DRAW
 s31435 DEFS 1
 
@@ -3749,70 +3767,90 @@ c31436 LD A,(24610)  ; {Barriers suppressed flag, this has to be zero otherwise
  31508 RET           ;
 
 ; Data block at 31509
-b31509 DEFB 0,0,254,0,255,0,1,0
+@label=_TMP_ALIEN_BULLET_LOCATION_X
+b31509 DEFB 0
+@label=_TMP_ALIEN_BULLET_LOCATION_Y
+ 31510 DEFB 0
+; Table of values used to add some randomish nibble
+; of the barrier. Small positive and negative offsets.
+@label=_BARRIER_NIBBLER_TABLE
+ 31511 DEFB 254,0,255,0,1,0
  31517 DEFB 2,0,255,255,1,255,255,1
  31525 DEFB 1,1
 
-; Not sure... Might be the bullet hitting barrier detection?
+; Has bullet hit a barrier?
 ;
-; This is called when an alien bullet hits a barrier.
-; But it's call from a point I think is where routine which animates the player's bullet.
-; It returns with Z flag set if the bullet hit something? Like
-; a barrier?
+; Check whether a bullet has hit one of the barriers, and if
+; so nibble a bit out of the barrier. This is used by alien bullets
+; coming down and player bullets going up. The input is the tip of
+; the bullet, its direction isn't used.
 ;.
-; Not sure what this is, but removing it stops the player's bullet
-; flying up the screen. It seems to return a value in the Z flag
-;
+; If the barriers aren't there, or the bullet location is either above
+; or below the barrier area, there's nothing to do. Otherwise, clear
+; a randomly shaped set of pixels around the bullet tip, then make a
+; click noise.
+;.
 ; Used by the routines at #R25853 and #R26541.
-@label=bullet_barrier_check
+;
+; I:B Leading tip of bullet screen location ypos
+; I:C Leading tip of bullet screen location xpos
+; O: Z flag set if no barrier hit and the bullet is still in flight
+; O: NZ if barrier has been hit
+@label=bullet_barrier_hit
 c31527 LD A,(24610)  ; {Return immediately if the barriers are suppressed
  31530 OR A          ;
  31531 RET Z         ; }
- 31532 LD (31509),BC ;
- 31536 LD A,B        ;
- 31537 CP 162        ;
- 31539 JR C,31632    ;
- 31541 CP 184        ;
- 31543 JR NC,31632   ;
- 31545 CALL 31653    ;
- 31548 RET Z         ;
- 31549 CALL 32059    ;
- 31552 LD IX,31511   ;
- 31556 LD A,8        ;
- 31558 LD (31434),A  ;
-*31561 LD A,(31509)  ;
- 31564 ADD A,(IX+0)  ;
- 31567 LD C,A        ;
- 31568 LD A,(31510)  ;
- 31571 ADD A,(IX+1)  ;
- 31574 LD B,A        ;
- 31575 INC IX        ;
- 31577 INC IX        ;
- 31579 LD A,(32055)  ;
- 31582 RLA           ;
- 31583 LD (32055),A  ;
- 31586 CALL C,31640  ;
- 31589 LD A,(31434)  ;
- 31592 DEC A         ;
- 31593 LD (31434),A  ;
- 31596 JR NZ,31561   ;
- 31598 LD BC,(31509) ;
- 31602 CALL 31640    ;
- 31605 LD BC,(31509) ;
- 31609 INC B         ;
- 31610 CALL 31640    ;
- 31613 LD BC,(31509) ;
- 31617 DEC B         ;
- 31618 CALL 31640    ;
+ 31532 LD (31509),BC ; Save ypos,xpos of leading tip of bullet here
+ 31536 LD A,B        ; A is ypos
+ 31537 CP 162        ; Top of barriers, pixel location
+ 31539 JR C,31632    ; Not got that far? Jump out
+ 31541 CP 184        ; Bottom of barriers, pixel location
+ 31543 JR NC,31632   ; Below that? Jump out
+ 31545 CALL 31653    ; {Clear barrier pixel at tip of bullet.
+ 31548 RET Z         ;  If it's already empty this pixel
+                     ;  of the barrier has already been hit
+                     ;  in which case the bullet keeps going}
+; Alien bullet is hitting a barrier
+ 31549 CALL 32059    ; Churn the randomness of the nibbler
+ 31552 LD IX,31511   ; Table of nibbler values
+ 31556 LD A,8        ; Nibble barrier 8 times
+ 31558 LD (31434),A  ; Temp store for counter value
+@label=barrier_check_loop
+*31561 LD A,(31509)  ; {Add a nibbler value to
+ 31564 ADD A,(IX+0)  ;  bullet xpos, put it in
+ 31567 LD C,A        ;  C}
+ 31568 LD A,(31510)  ; {Add a nibbler value to
+ 31571 ADD A,(IX+1)  ;  bullet ypos, put it in
+ 31574 LD B,A        ;  B}
+ 31575 INC IX        ; {Next nibbler table entry
+ 31577 INC IX        ;  into IX}
+ 31579 LD A,(32055)  ; {Pick up cycler, rotate it,
+ 31582 RLA           ; and if a one ends up in the
+ 31583 LD (32055),A  ; carry bit, nibble out this
+ 31586 CALL C,31640  ; barrier pixel}
+ 31589 LD A,(31434)  ; {Decrement counter, go 
+ 31592 DEC A         ;  back and do it again
+ 31593 LD (31434),A  ;  8 times
+ 31596 JR NZ,31561   ; }
+; Nibble 3 vertical pixels out of the barrier at, above, and
+; below the bullet tip impact point
+ 31598 LD BC,(31509) ; {Clear barrier pixel
+ 31602 CALL 31640    ;  of bullet tip}
+ 31605 LD BC,(31509) ; {Clear barrier pixel
+ 31609 INC B         ;  of the one below
+ 31610 CALL 31640    ;  the buller tip}
+ 31613 LD BC,(31509) ; {Clear barrier pixel
+ 31617 DEC B         ;  of the one above
+ 31618 CALL 31640    ;  the bullet tip}
  31621 CALL 31987    ; Sound burbler
- 31624 DEFB 4,20     ; ???
- 31626 INC B         ;
- 31627 LD E,0        ;
+ 31624 DEFB 4,20,4   ; {Little click for barrier hit sound
+ 31627 DEFB 30,0     ; }
 ; Sound burbler return point
- 31629 OR 1          ; {Z flag reset
- 31631 RET           ;}
-*31632 XOR A         ; {A=0, Z flag set
- 31633 RET           ; }
+ 31629 OR 1          ; {Z flag reset to tell caller
+ 31631 RET           ;  barrier has been hit}
+@label=barrier_not_hit
+*31632 XOR A         ; {A=0, Z flag set to tell caller
+ 31633 RET           ;  barrier hasn't been hit}
 
 ; Set pixel
 ;
@@ -3871,14 +3909,16 @@ c31647 CALL 31922    ; pxy2saddr of B=ypos, C=xpos
 ; I:B ypos
 ; I:C xpos
 @label=pixel_clearbyte
-c31653 CALL 31922    ; pxy2saddr of B=ypos, C=xpos
+c31653 CALL 31922    ; pxy2saddr of B=ypos, C=xpos,
+                     ; returns with screen location in HL
+                     ; and the pixel within the byte in A
  31656 AND (HL)      ; Clear byte except the indicated pixel which is left
  31657 RET           ;
 
-; Screen address calculation table, used by px2saddr
+; Screen address calculation table, used by pxy2saddr
 @label=_PIXEL_DATA
 b31658 DEFB 128,64,32,16,8,4,2,1
-@label=_PX2SADDR_DATA
+@label=_PXY2SADDR_DATA
  31666 DEFB 0,8,16,24,32,40,48,56
  31674 DEFB 1,9,17,25,33,41,49,57
  31682 DEFB 2,10,18,26,34,42,50,58
@@ -3923,7 +3963,7 @@ b31658 DEFB 128,64,32,16,8,4,2,1
 ; I:C xpos in pixels
 ; O:HL display file byte address
 ; O:A display file byte's pixel
-@label=px2saddr
+@label=pxy2saddr
 c31922 LD HL,31666   ; Table of clever values
  31925 LD E,B        ; {DE is 8 bit y pos
  31926 LD D,0        ; }
@@ -4055,11 +4095,13 @@ c32034 LD A,(31986)  ; Pick up saved border colour
  32052 OUT (254),A   ; }
  32054 RET           ;
 
-; Data block at 32055
+; This value is cycled to maintain a sort of randomness
+; in the way pixels are nibbled out of the barriers when
+; alien bullets hit them
+@label=_BARRIER_CYCLER_H
 b32055 DEFB 186
-
-; Message at 32056
-b32056 DEFB 93
+@label=_BARRIER_CYCLER_L
+ 32056 DEFB 93
 
 ; Cycling value
 ;
@@ -4071,35 +4113,42 @@ b32057 DEFB 108
 @label=_SPACESHIP_CYCLING_VALUE_L
  32058 DEFB 77
 
-; Routine at 32059
+; Update cycler values
 ;
+; This updates the values used to add randomness to the
+; spacehsip appearance timing and the way the barriers
+; are nibbled away by the alien's bullets. It's not
+; random as such, more a churn of numbers to break up
+; patterns.
+;.
 ; Used by the routines at #R25749 and #R31527.
-c32059 LD HL,(32057) ;
+@label=update_cycler_values
+c32059 LD HL,(32057) ; Spaceship cycler value into HL
  32062 RL L          ;
- 32064 RL H          ;
+ 32064 RL H          ; x2
  32066 RL L          ;
- 32068 RL H          ;
- 32070 LD C,H        ;
- 32071 LD A,(32055)  ;
- 32074 RLA           ;
- 32075 LD B,A        ;
- 32076 LD DE,(32056) ;
- 32080 RL E          ;
- 32082 RL D          ;
- 32084 RES 7,D       ;
- 32086 LD HL,(32055) ;
- 32089 ADD HL,BC     ;
- 32090 LD (32055),HL ;
- 32093 LD HL,(32057) ;
- 32096 ADC HL,DE     ;
- 32098 RES 7,H       ;
- 32100 LD (32057),HL ;
+ 32068 RL H          ; x4
+ 32070 LD C,H        ; That goes into C
+ 32071 LD A,(32055)  ; Barrier cycler value into A
+ 32074 RLA           ; x2
+ 32075 LD B,A        ; That goes into B
+ 32076 LD DE,(32056) ; Amalgamation of barrier cycler and spaceship cycler
+ 32080 RL E          ; 
+ 32082 RL D          ; x2
+ 32084 RES 7,D       ; Limit to 32767
+ 32086 LD HL,(32055) ; {Add the value worked out into BC
+ 32089 ADD HL,BC     ;  into barrier cycler value
+ 32090 LD (32055),HL ; }
+ 32093 LD HL,(32057) ; {Add the value worked out into DE
+ 32096 ADC HL,DE     ; into the spaceship cycling value
+ 32098 RES 7,H       ; limited to 32767
+ 32100 LD (32057),HL ; }
  32103 RET P         ;
- 32104 LD HL,32055   ;
-*32107 INC HL        ;
- 32108 RET NZ        ;
+ 32104 LD HL,32055   ; {Don't let barrier
+*32107 INC HL        ; cycling value
+ 32108 RET NZ        ; settle at zero
  32109 INC HL        ;
- 32110 JR 32107      ;
+ 32110 JR 32107      ; }
 
 ; Printable score
 ;
