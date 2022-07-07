@@ -1086,16 +1086,26 @@ b24605 DEFB 5        ; Speed factor to compensate when there's a spaceship to be
 
 @label=_NUM_ALIENS_REMAINING
 b24615 DEFB 0
+@label=_TABLE_SOMETHING_NUM_ALIENS_IN_ROWS
  24616 DEFB 114,121,230,128
- 24620 DEFB 194,28,115,58,246,140,230,128
+ 24620 DEFB 194
+@label=_ANOTHER_TABLE_SOMETHING
+ 24621 DEFB 28,115,58,246,140,230,128
  24628 DEFB 202,39,115,205
 @label=_ALIEN_COLOUR_BAND_ARG
  24632 DEFB 0
  24633 DEFB 0
-@label=_COLL_CHECK_SOMETHING
+; This is used to cycle up through up to 5 rows of aliens
+; looking to see if the player's bullet is in that row.
+; Not sure quite how it's being used ???
+; 
+@label=_ACTIVE_ALIEN_ROWS_MAYBE
  24634 DEFB 0
  24635 DEFB 0
- 24636 DEFB 0,0
+@label=_SOMETHING_ELSE_ALIEN
+ 24636 DEFB 0
+@label=_AND_SOMETHING_ELSE
+ 24637 DEFB 0
 @label=_PLAYER_XPOS
  24638 DEFB 0                             ; Player ship pos, X
 @label=_PLAYER_YPOS
@@ -1810,7 +1820,7 @@ c25749 CALL 32059    ; Churn the "randomisation"
 @label=loopy_thing
 *25797 LD A,(25691)  ; Fetch this back
  25800 PUSH IX       ; IX must be passed in
- 25802 CALL 27097    ; IX = #R27327 + ( 'A' * 706 )
+ 25802 CALL 27097    ; Address of alien row 'A's data
  25805 LD A,(IX+1)   ; Value from structure
  25808 LD (25693),A  ; Stash it here
  25811 LD A,(25692)  ; Pick this up again
@@ -2023,18 +2033,19 @@ c26049 LD A,(24643)  ; Pick up bullet Y pos
  26054 SRL A         ;
  26056 SRL A         ;
  26058 INC A         ; }
- 26059 LD (26101),A  ; Stash A
- 26062 LD A,(24634)  ;
-*26065 LD (26099),A  ;
- 26068 CALL 27097    ; IX = #R27327 + ( 'A' * 706 )
- 26071 LD A,(26101)  ; Retrieve A
- 26074 CP (IX+1)     ; IX+1 must be alien cypos
- 26077 JR Z,26087    ;
- 26079 LD A,(26099)  ;
+ 26059 LD (26101),A  ; Save player bullet cy
+ 26062 LD A,(24634)  ; ???
+*26065 LD (26099),A  ; #R26099 is the loop counter
+ 26068 CALL 27097    ; Address of alien row 'A's data
+ 26071 LD A,(26101)  ; Retrieve player bullet cy
+ 26074 CP (IX+1)     ; Alien row left side cy
+ 26077 JR Z,26087    ; Bullet and alien in same cy, could be a hit
+ 26079 LD A,(26099)  ; {Round to check next alien row
  26082 DEC A         ;
- 26083 JP P,26065    ;
+ 26083 JP P,26065    ; }
  26086 RET           ; No collision on the Y axis
-; Jump here if there's a collision on the Y axis
+; Jump here if there's a collision on the Y axis, go and check the X axis
+@label=bullet_cy_hit_check_cx
 *26087 LD A,(24642)  ; Pick up bullet X pos
  26090 CALL 26154    ; Do X axis collision check
  26093 RET Z         ; Return if no collision
@@ -2151,64 +2162,76 @@ c26154 LD (26097),A  ;
 ; The game freezes while the explosion is on screen and the sound is playing,
 ; but you don't notice it.
 ;.
+; If there are more aliens this jumps out the #R26375 routine. If the last
+; one was hit, rind the end of screen siren, clean up a bit, then return.
+;.
 ; Used by the routine at #R26049.
 ;
-; I:IX Alien structure, I think???
+; I:IX Address of alien structure UDG data, less 2
 @label=alien_hit
-c26225 CALL 26320                    ; ???
+c26225 CALL 26320                    ; Zero out the alien in the UDG data
  26228 LD HL,26106                   ; {Puts #R26106 into #R26102. Top char
  26231 LD (26102),HL                 ;  row of explosion graphic}
  26234 LD HL,26122                   ; {Put #R26122 into #R26104. Bottom char
  26237 LD (26104),HL                 ;  row of explosion graphic}
- 26240 CALL 26337                    ;
- 26243 CALL 26947                    ;
+ 26240 CALL 26337                    ; {Draw the explosion on screen
+ 26243 CALL 26947                    ; and remove the player bullet}
  26246 CALL 31987                    ; Sound burbler
  26249 DEFB 16,80,32,40,64,20,128,10 ; {Alien hit sound
  26257 DEFB 0                        ; }
 ; Sound burbler return point
- 26258 CALL 26464                    ;
- 26261 LD HL,26138                   ;
- 26264 LD (26102),HL                 ;
- 26267 LD (26104),HL                 ;
- 26270 CALL 26337                    ;
- 26273 LD A,(24615)                  ;
+ 26258 CALL 26464                    ; Bump score based on alien type hit
+ 26261 LD HL,26138                   ; {Now draw an "blank" alien
+ 26264 LD (26102),HL                 ; explosion to clear that bit of
+ 26267 LD (26104),HL                 ; the screen
+ 26270 CALL 26337                    ; }
+ 26273 LD A,(24615)                  ; {One fewer alien to deal with
  26276 DEC A                         ;
- 26277 LD (24615),A                  ;
- 26280 JP NZ,26375                   ;
- 26283 CALL 25976                    ;
- 26286 LD B,40                       ;
+ 26277 LD (24615),A                  ; }
+ 26280 JP NZ,26375                   ; If there are more aliens, jump out
+; If we get here the last alien has been zapped
+ 26283 CALL 25976                    ; Clear all alien bullets from screen
+ 26286 LD B,40                       ; 40 rings of the siren
+@label=screen_clear_siren
 *26288 LD A,(23624)                  ; Pick up port 254 shadow
- 26291 ADD A,8                       ; ???
- 26293 AND 56                        ; Mask out bottom 3 bits, border black
- 26295 LD (23624),A                  ; Put it back
+ 26291 ADD A,8                       ; {Roll the border colour
+ 26293 AND 56                        ; 
+ 26295 LD (23624),A                  ; }
  26298 CALL 31987                    ; Sound burbler
  26301 DEFB 16,100,32,50,64,25,32,50 ; {Last alien hit sound
  26309 DEFB 0                        ; }
-; Sound burbler return point
  26310 DJNZ 26288                    ;
+; Clean up a bit, return to go and start next screen
  26312 CALL 25537                    ;
  26315 CALL 26001                    ; Clear bottom row
  26318 POP HL                        ;
  26319 RET                           ;
 
-; Alien hit, zero something
+; Alien hit, zero out the UDGs
 ;
-; Starting with the alien structure for the alien which has been hit, zero
-; bytes 2 and 3, then move on 22 bytes and repeat 32 times.
+; IX+2 points to the first scan of the hit alien's graphics structure.
+; Those 2 bytes are zeroed out, then we skip 11*2 bytes which points
+; IX at the hit alien's next scan down. Repeat 32 times (recalling
+; that the alien data structure actually holds 2 16x16 sprites,
+; one for alien looking left, one for alien looking right).
 ; .
-; I've no idea why as yet???
+; The effect is to wipe the alien from the next screen redraw - a
+; gap will be drawn from the zeroes.
 ; .
+; This is passed IX as pointing at the UDG data, less 2, hence the
+; IX+2 and IX+3. Bit odd.
+;.
 ; Used by the routine at #R26225.
 ;
-; I:IX Hit alien structure
-@label=alien_hit_zero_some_bytes
-c26320 LD B,32       ;
- 26322 LD DE,22      ; 22 is 2*11
- 26325 XOR A         ;
-*26326 LD (IX+2),A   ;
- 26329 LD (IX+3),A   ;
- 26332 ADD IX,DE     ;
- 26334 DJNZ 26326    ;
+; I:IX Address of hit alien's UDGs in the structure at #R27327, less 2
+@label=alien_hit_zero_udgs
+c26320 LD B,32       ; 2 UDGs to clear, 16 bytes each
+ 26322 LD DE,22      ; 22 is 2*11, the distance between sprite UDG scan pairs
+ 26325 XOR A         ; Zero them out
+*26326 LD (IX+2),A   ; {Clear 2 bytes
+ 26329 LD (IX+3),A   ; }
+ 26332 ADD IX,DE     ; Move to next scanline
+ 26334 DJNZ 26326    ; Repeat for both alien UDGs
  26336 RET           ;
 
 ; Draw alien explosion
@@ -2246,22 +2269,27 @@ c26337 LD BC,(26100) ; Bullet cx,cy, that's the explosion place
  26372 DJNZ 26363    ;
  26374 RET           ;
 
-; Routine at 26375
+; Recalc alien numeric data
 ;
+; Not sure what this is doing. I think it's updating a bunch of
+; statically held values which control alien horde data.
+;.
 ; Used by the routine at #R26225.
+;
+; I: #R26099 holds row of alien that has been hit
 @label=recalc_horde_width
-c26375 LD HL,24616   ;
- 26378 LD A,(26099)  ;
- 26381 CALL 26484    ;
- 26384 DEC (HL)      ;
+c26375 LD HL,24616   ; HL points to table - table of how many aliens are in the rows, maybe?
+ 26378 LD A,(26099)  ; {Find entry in table
+ 26381 CALL 26484    ;  for row where the alien has been hit}
+ 26384 DEC (HL)      ; Decrement that, one fewer aliens
  26385 LD HL,24621   ;
- 26388 LD IX,31107   ;
- 26392 LD A,(26098)  ;
+ 26388 LD IX,31107   ; Stash IX here
+ 26392 LD A,(26098)  ; {Find entry in this table
  26395 SRL A         ;
- 26397 CALL 26484    ;
- 26400 DEC (HL)      ;
- 26401 LD HL,24616   ;
- 26404 LD A,(24634)  ;
+ 26397 CALL 26484    ; }
+ 26400 DEC (HL)      ; Decrement that
+ 26401 LD HL,24616   ; Back to the rows table
+ 26404 LD A,(24634)  ; {Not sure about this bit ???
  26407 INC A         ;
  26408 LD B,A        ;
  26409 CALL 26484    ;
@@ -2269,7 +2297,7 @@ c26375 LD HL,24616   ;
 *26413 DEC HL        ;
  26414 DEC B         ;
  26415 OR (HL)       ;
- 26416 JR Z,26413    ;
+ 26416 JR Z,26413    ; }
  26418 LD A,B        ;
  26419 LD (24634),A  ; This is used by bullet collision
  26422 LD B,255      ;
@@ -2656,7 +2684,7 @@ c26965 PUSH IX       ;
 ; Copy alien UDG data to a screen row
 ;
 ; Each row of aliens has 11 of them. This populates the graphics
-; used to render a row.
+; used to render a row. It builds the data structure at #R27327.
 ;.
 ; It enters with IX pointing to the alien row data. It populates 22 bytes of UDG data
 ; which is 2 bytes side-by-side on one screen scan, for 11 aliens. All 11 aliens
@@ -2708,7 +2736,7 @@ c27030 LD A,(24614)  ; Pick up the screen row where the aliens start
  27035 LD (27326),A  ; Stash that
  27038 LD HL,27321   ; Alien types per row, yellow, green, green, red, red
  27041 LD (27319),HL ; Stash that
- 27044 LD A,4        ; {Loop this code 4 times
+ 27044 LD A,4        ; {Loop this code 5 times (really, P flag is used below)
  27046 LD (27029),A  ; }
  27049 LD IX,27327   ; Get a pointer to alien row position data
 *27053 LD (IX+0),5   ; {Byte 0 is cx, which starts as 5 chars in from left
@@ -2725,39 +2753,33 @@ c27030 LD A,(24614)  ; Pick up the screen row where the aliens start
  27077 LD (27319),HL ;  next row}
  27080 CALL 27114    ; Get UDG sprite type in A into HL
  27083 CALL 27005    ; {Prime the graphics ready for drawing.
-                     ;  This advances IX by xxx bytes}
+                     ;  This advances IX by 704 bytes}
  27086 LD A,(27029)  ; {Pick up counter
- 27089 DEC A         ; and repeat for each row
- 27090 LD (27029),A  ; 
+ 27089 DEC A         ; and repeat for each row.
+ 27090 LD (27029),A  ; P flag on the jump is an odd choice.
  27093 JP P,27053    ; }
  27096 RET           ;
 
-; IX = 27327 + ( 'A' * 706 ) ???
+; Find the data structure which represents the row of aliens
 ;
-; Guessing this is finding an entry in an array of data structures which are
-; 706 bytes? That would be too big for the aliens?
-; .
-; 27327 starts a large data block which starts off with the assembler strings
-; and stuff, so it's being populated with some large amount of data.
-; .
-; For values of A 0 to 4 this seems to yield a pointer into data. 5 or over
-; yields a pointer to code. So it might be alien rows?
-.
+; #R27327 holds the data for the alien rows. Each row is 706 bytes,
+; and there's 5 of them.
+;.
 ; Used by the routines at #R25749, #R26049, #R30857 and #R31075.
 ;
-; I:A Multiplier
-; O:IX 27327 + A*706
-@label=multi_a_by_706_add_27327
-c27097 LD IX,27327   ;
- 27101 OR A          ; {If A is zero no multiplication is necessary
+; I:A Row number
+; O:IX Start of row data
+@label=find_alien_row_data
+c27097 LD IX,27327   ; Row data block starts here
+ 27101 OR A          ; {For row zero we already have the answer
  27102 RET Z         ; }
- 27103 PUSH BC       ;
- 27104 LD BC,706     ;
+ 27103 PUSH BC       ; {Go into a loop adding the row data
+ 27104 LD BC,706     ;  size (706 bytes) to IX.
 *27107 ADD IX,BC     ;
  27109 DEC A         ;
  27110 JR NZ,27107   ;
- 27112 POP BC        ;
- 27113 RET           ;
+ 27112 POP BC        ; }
+ 27113 RET           ; That's the address of that row's data
 
 ; Find alien UDG data
 ;
@@ -3406,7 +3428,7 @@ c30857 LD A,(24632)  ; Pick up this
  30873 OR A          ; Zero?
  30874 JR NZ,30888   ;
  30876 LD A,(24632)  ;
- 30879 CALL 27097    ; IX = #R27327 + ( 'A' * 706 )
+ 30879 CALL 27097    ; Address of alien row 'A's data
  30882 CALL 31119    ;
  30885 CALL 30959    ;
 *30888 LD A,(24632)  ;
@@ -3414,7 +3436,7 @@ c30857 LD A,(24632)  ; Pick up this
  30892 JR NZ,30900   ;
  30894 CALL 31987    ; Sound burbler
  30897 DEFB 10,250,0 ; Aliens marching sound
-*30900 CALL 27097    ;
+*30900 CALL 27097    ; Address of alien row 'A's data
  30903 CALL 31119    ;
  30906 LD A,(24633)  ;
  30909 OR A          ;
@@ -3511,24 +3533,25 @@ c30995 CALL 31987       ; Sound burbler
 ;
 ; This displays the bands of aliens - from the bottom upwards it's red, bleep,
 ; red, bleep, green, bleep, green, bleep, yellow.
-;
+;.
 ; Used by the routine at #R24703.
 @label=init_draw_aliens
-c31075 LD A,4                       ;
-*31077 LD (24632),A                 ;
- 31080 CALL 27097                   ; IX = #R27327 + ( 'A' * 706 ) ???
- 31083 CALL 31119                   ;
- 31086 CALL 31198                   ;
+c31075 LD A,4                       ; 5 rows (really, P flag is used below)
+*31077 LD (24632),A                 ; This temp value is the loop counter
+ 31080 CALL 27097                   ; Address of alien row 'A's data into IX
+ 31083 CALL 31119                   ; Not sure???
+ 31086 CALL 31198                   ; {Print a row of aliens on screen. Alien
+                                    ; data is at IX, #R31109 holds screen cx,cy}
  31089 CALL 31987                   ; Sound burbler, row of aliens appearing
  31092 DEFB 25,240,100,120,25,240,0 ;
 ; Sound burbler return point
- 31099 LD A,(24632)                 ;
- 31102 DEC A                        ;
- 31103 JP P,31077                   ;
+ 31099 LD A,(24632)                 ; {Dec counter and repeat 5 times.
+ 31102 DEC A                        ;  Use of P flag is a bit odd.
+ 31103 JP P,31077                   ; }
  31106 RET                          ;
-
+;
 @label=_TEMP_IX_STASH
-s31107 DEFS 2
+b31107 DEFB 0,0
 @label=_NEXT_ALIEN_ROW_TO_DRAW
 b31109 DEFB 0                       ; Next screen row to populate with aliens
 @label=_LOWEST_ALIEN_YPOS
@@ -3551,7 +3574,7 @@ b31109 DEFB 0                       ; Next screen row to populate with aliens
 ; Routine at 31119
 ; .
 ; Used by the routines at #R26154, #R30857, #R30995 and #R31075.
-@label=maybe_find_alien_row_data
+@label=not_sure_alien_row_data
 c31119 LD (31107),IX ; Stash IX
  31123 LD C,(IX+0)   ; Alien cypos
  31126 LD B,(IX+1)   ; Alien cxpos
