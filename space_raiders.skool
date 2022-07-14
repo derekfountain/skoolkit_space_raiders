@@ -1086,25 +1086,43 @@ b24605 DEFB 5        ; Speed factor to compensate when there's a spaceship to be
 
 @label=_NUM_ALIENS_REMAINING
 b24615 DEFB 0
-@label=_TABLE_SOMETHING_NUM_ALIENS_IN_ROWS
- 24616 DEFB 114,121,230,128
- 24620 DEFB 194
-@label=_ANOTHER_TABLE_SOMETHING
- 24621 DEFB 28,115,58,246,140,230,128
- 24628 DEFB 202,39,115,205
+; Table of number of aliens left in each row. Starts of with 5 
+; rows of 11 aliens. The top screen row is first byte.
+@label=_ALIENS_LEFT_IN_ROWS
+ 24616 DEFB 11,11,11,11,11
+; Table contains number of aliens in a column. There are 11 aliens per
+; row, so that's 11 columns. When an alien is hit its row value in this
+; table is reduced by one. When the column gets to zero that means there
+; are no aliens left in that column. This is used to manage the horde as
+; they move right to left and back again.
+@label=_ALIENS_LEFT_IN_COLs
+ 24621 DEFB 5,5,5,5,5,5,5,5,5,5,5
 @label=_ALIEN_COLOUR_BAND_ARG
  24632 DEFB 0
  24633 DEFB 0
-; This is used to cycle up through up to 5 rows of aliens
+; This stores the lowest screen row (0 to 4, where 4 is the
+; bottom alien row) which has at least one alien in it.
+; This is used to cycle up through up 5 rows of aliens
 ; looking to see if the player's bullet is in that row.
-; Not sure quite how it's being used ???
+; No point in looking in rows with no aliens.
 ; 
-@label=_ACTIVE_ALIEN_ROWS_MAYBE
+@label=_LOWEST_ACTIVE_ALIEN_ROW
  24634 DEFB 0
+; This is a count of the number of columns on the left side
+; of the horde which have been removed.
+@label=_HORDE_LEFT_SIDE_GAP
  24635 DEFB 0
-@label=_SOMETHING_ELSE_ALIEN
+; Which column, starting from the left, still has aliens
+; in it. Starts off as 0, goes to 1 when left most column
+; of aliens is cleared, etc. It reflects the gap to the left
+; side of the horde.
+@label=_LEFTMOST_ACTIVE_ALIEN_COL
  24636 DEFB 0
-@label=_AND_SOMETHING_ELSE
+; Which column, starting from the right, still has aliens
+; in it. Starts off as 11, goes to 10 when right most column
+; of aliens is cleared, etc. It reflects the gap to the right
+; side of the horde.
+@label=_RIGHTMOST_ACTIVE_ALIEN_COL
  24637 DEFB 0
 @label=_PLAYER_XPOS
  24638 DEFB 0                             ; Player ship pos, X
@@ -1803,7 +1821,7 @@ c25749 CALL 32059    ; Churn the "randomisation"
  25762 RET C         ;  than rate of fire, return. The higher the
                      ;  the rate of fire value, the less likely
                      ;  we are to return, hence more bullets}
- 25763 LD A,(24634)  ; DOn't know what this is
+ 25763 LD A,(24634)  ; Number of rows aliens might fire from
  25766 LD (25691),A  ; Loop that many times
  25769 LD A,(24638)  ; Player ship pos, X
  25772 ADD A,7       ; Middle ship xpos?
@@ -2034,7 +2052,7 @@ c26049 LD A,(24643)  ; Pick up bullet Y pos
  26056 SRL A         ;
  26058 INC A         ; }
  26059 LD (26101),A  ; Save player bullet cy
- 26062 LD A,(24634)  ; ???
+ 26062 LD A,(24634)  ; Number of rows aliens can fire from
 *26065 LD (26099),A  ; #R26099 is the loop counter
  26068 CALL 27097    ; Address of alien row 'A's data
  26071 LD A,(26101)  ; Retrieve player bullet cy
@@ -2054,7 +2072,12 @@ c26049 LD A,(24643)  ; Pick up bullet Y pos
 ; Data block at 26097
 @label=_TEMP_A_STORE
 b26097 DEFB 0
-@label=_SOMETHING_IN_XAXIS
+; Screen cx offset of hit alien. Aliens are 2 bytes wide so this
+; goes 0, 2, 4, etc. So hit the the leftmost alien this will be 0,
+; the one next to it will be 2, etc. Divide this number by 2 to
+; get the number of the alien which has been hit, 0 to 10, counted
+; from the left side.
+@label=_CX_OFFSET_HIT_ALIEN
  26098 DEFB 0
 ; This holds the score value of a hit alien divided by 10.
 ; So a green alien, worth 20, would put 2 in here.
@@ -2269,59 +2292,87 @@ c26337 LD BC,(26100) ; Bullet cx,cy, that's the explosion place
  26372 DJNZ 26363    ;
  26374 RET           ;
 
-; Recalc alien numeric data
+; Recalc alien numeric data on alien hit
 ;
-; Not sure what this is doing. I think it's updating a bunch of
-; statically held values which control alien horde data.
+; This updates a set of numerical values which control alien horde data.
+; We have #R24616 which holds a 5 entry array containing the number of
+; aliens in each row. One entry in that needs to be decremented. Then
+; there's #R24621 which holds an 11 entry array containing the number
+; of aliens in each column. Decrement an entry in there too. #R24634 is
+; then recalculated so we know which is the lowest on screen row which
+; still has at least one alien left in it. #R24636 and #R24637 are then
+; recalculated so we know how far across the horde has to move left to
+; right.
 ;.
 ; Used by the routine at #R26225.
 ;
 ; I: #R26099 holds row of alien that has been hit
-@label=recalc_horde_width
-c26375 LD HL,24616   ; HL points to table - table of how many aliens are in the rows, maybe?
- 26378 LD A,(26099)  ; {Find entry in table
- 26381 CALL 26484    ;  for row where the alien has been hit}
- 26384 DEC (HL)      ; Decrement that, one fewer aliens
- 26385 LD HL,24621   ;
- 26388 LD IX,31107   ; Stash IX here
- 26392 LD A,(26098)  ; {Find entry in this table
- 26395 SRL A         ;
- 26397 CALL 26484    ; }
- 26400 DEC (HL)      ; Decrement that
- 26401 LD HL,24616   ; Back to the rows table
- 26404 LD A,(24634)  ; {Not sure about this bit ???
- 26407 INC A         ;
- 26408 LD B,A        ;
- 26409 CALL 26484    ;
- 26412 XOR A         ;
-*26413 DEC HL        ;
- 26414 DEC B         ;
- 26415 OR (HL)       ;
- 26416 JR Z,26413    ; }
- 26418 LD A,B        ;
- 26419 LD (24634),A  ; This is used by bullet collision
- 26422 LD B,255      ;
- 26424 LD HL,24621   ;
- 26427 XOR A         ;
- 26428 DEC HL        ;
-*26429 INC HL        ;
- 26430 INC B         ;
- 26431 OR (HL)       ;
- 26432 JR Z,26429    ;
- 26434 LD A,B        ;
- 26435 LD (24636),A  ;
- 26438 LD HL,24621   ;
- 26441 LD A,11       ;
- 26443 LD B,A        ;
- 26444 INC B         ;
- 26445 CALL 26484    ;
- 26448 XOR A         ;
-*26449 DEC HL        ;
- 26450 DEC B         ;
- 26451 OR (HL)       ;
- 26452 JR Z,26449    ;
- 26454 LD A,B        ;
- 26455 LD (24637),A  ;
+; I: #R26098 holds cx value of hit alien, so 0 to 21.
+@label=recalc_horde_stats
+;
+; Start by decrementing the number of aliens in the
+; hit alien's row
+c26375 LD HL,24616   ; {Find this row's entry in the table
+ 26378 LD A,(26099)  ; which holds the number of aliens left
+ 26381 CALL 26484    ; in each row (0 to 11). Decrement it.
+ 26384 DEC (HL)      ; }
+; Now decrement the number of aliens in the hit
+; alien's column
+ 26385 LD HL,24621   ; {Find the column the hit alien is in and
+ 26388 LD IX,31107   ;  get the aliens-left value for that column
+ 26392 LD A,(26098)  ;  (0 to 5). Decrement it. IX value set here
+ 26395 SRL A         ;  appears to be redundant.
+ 26397 CALL 26484    ; 
+ 26400 DEC (HL)      ; }
+; The row and columns tables have been decremented, so now update
+; the values which store the extremes of the horde. If the last
+; alien in a row and/or column was just zapped we need to update
+; these values.
+;.
+; Look for row with at least one alien in it. Work from the bottom
+; row upwards.
+ 26401 LD HL,24616   ; Pick up the number-left-in-rows table
+ 26404 LD A,(24634)  ; Current lowest screen row with at least one alien left
+ 26407 INC A         ; Make it correct for this purpose
+ 26408 LD B,A        ; B is the counter for this loop
+ 26409 CALL 26484    ; Find entry in alien rows table
+ 26412 XOR A         ; Zero A
+*26413 DEC HL        ; We're going from bottom row to top. HL
+                     ; is now the row above where we last thought
+                     ; the lowest empty row was.
+ 26414 DEC B         ; {Move up a row  - is
+ 26415 OR (HL)       ; the number of aliens in this row zero?}
+ 26416 JR Z,26413    ; Yes, jump back to check next row up.
+; B now contains index of the lowest non-empty alien row.
+; Update #R24634 with that.
+ 26418 LD A,B        ; {Update value which stores the lowest
+ 26419 LD (24634),A  ;  screen row with at least one alien}
+; Look for the left most column with an alien still in it
+ 26422 LD B,255      ; B is -1 for the start of the loop
+ 26424 LD HL,24621   ; HL is number of aliens in column table
+ 26427 XOR A         ; Zero A
+ 26428 DEC HL        ; Back one, just for the loop
+*26429 INC HL        ; {Move along the aliens-in-cols table
+ 26430 INC B         ;  looking for the first entry with
+ 26431 OR (HL)       ;  non-zero aliens. That's what we're
+ 26432 JR Z,26429    ;  looking for.}
+; Non-empty column on left side found, its index is in B
+ 26434 LD A,B        ; {A contains index of leftmost non-empty
+ 26435 LD (24636),A  ;  alien column. Store that. }
+; Look for the right most column with an alien still in it
+ 26438 LD HL,24621   ; HL is number of aliens in column table
+ 26441 LD A,11       ; {B starts at 12
+ 26443 LD B,A        ; 
+ 26444 INC B         ; }
+ 26445 CALL 26484    ; HL contains right most column
+ 26448 XOR A         ; Zero A
+*26449 DEC HL        ; {Work back leftwards, looking for the
+ 26450 DEC B         ;  first column which has a non-zero
+ 26451 OR (HL)       ;  number of aliens in it.
+ 26452 JR Z,26449    ; }
+; Non-empty column on right side found, its index is in B
+ 26454 LD A,B        ; {A contains index of rightmost non-empty
+ 26455 LD (24637),A  ;  alien column. Store that. }
  26458 RET           ;
 
 ; Scores table based on alien rows.
@@ -3549,9 +3600,11 @@ c31075 LD A,4                       ; 5 rows (really, P flag is used below)
  31102 DEC A                        ;  Use of P flag is a bit odd.
  31103 JP P,31077                   ; }
  31106 RET                          ;
+
 ;
-@label=_TEMP_IX_STASH
-b31107 DEFB 0,0
+@label=_NOT_SURE
+b31107 DEFB 0
+ 31108 DEFB 0
 @label=_NEXT_ALIEN_ROW_TO_DRAW
 b31109 DEFB 0                       ; Next screen row to populate with aliens
 @label=_LOWEST_ALIEN_YPOS
