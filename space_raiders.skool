@@ -2145,7 +2145,10 @@ b26097 DEFB 0
 ; O:A 0 for no collision, 1 for collision
 @label=bullet_alien_coll_xaxis
 c26154 LD (26097),A  ;
- 26157 CALL 31119    ;
+ 26157 CALL 31119    ; {Work out this row's left side space,
+                     ; the width of the horde, and the right
+                     ; side space. Prime all values ready for
+                     ; the print routine.}
  26160 LD IX,31107   ;
  26164 LD A,(26097)  ;
  26167 LD B,A        ; B holds the player bullet xpos in pixels
@@ -2212,6 +2215,8 @@ c26225 CALL 26320                    ; Zero out the alien in the UDG data
  26276 DEC A                         ;
  26277 LD (24615),A                  ; }
  26280 JP NZ,26375                   ; If there are more aliens, jump out
+                                     ; via the routine which works out the
+                                     ; horde's extremes
 ; If we get here the last alien has been zapped
  26283 CALL 25976                    ; Clear all alien bullets from screen
  26286 LD B,40                       ; 40 rings of the siren
@@ -3480,7 +3485,10 @@ c30857 LD A,(24632)  ; Pick up this
  30874 JR NZ,30888   ;
  30876 LD A,(24632)  ;
  30879 CALL 27097    ; Address of alien row 'A's data
- 30882 CALL 31119    ;
+ 30882 CALL 31119    ; {Work out this row's left side space,
+                     ; the width of the horde, and the right
+                     ; side space. Prime all values ready for
+                     ; the print routine.}
  30885 CALL 30959    ;
 *30888 LD A,(24632)  ;
  30891 OR A          ;
@@ -3488,7 +3496,10 @@ c30857 LD A,(24632)  ; Pick up this
  30894 CALL 31987    ; Sound burbler
  30897 DEFB 10,250,0 ; Aliens marching sound
 *30900 CALL 27097    ; Address of alien row 'A's data
- 30903 CALL 31119    ;
+ 30903 CALL 31119    ; {Work out this row's left side space,
+                     ; the width of the horde, and the right
+                     ; side space. Prime all values ready for
+                     ; the print routine.}
  30906 LD A,(24633)  ;
  30909 OR A          ;
  30910 JR Z,30938    ;
@@ -3563,7 +3574,10 @@ c30995 CALL 31987       ; Sound burbler
 *31030 LD IX,(31107)    ; Pointer to alien structure
  31034 LD (IX+0),C      ; New ypos
  31037 LD (IX+1),B      ; New xpos
- 31040 CALL 31119       ;
+ 31040 CALL 31119       ; {Work out this row's left side space,
+                        ; the width of the horde, and the right
+                        ; side space. Prime all values ready for
+                        ; the print routine.}
  31043 JP 31198         ;
 @label=aliens_landed
 *31046 LD A,1           ; {Flag that the aliens have landed.
@@ -3590,7 +3604,10 @@ c30995 CALL 31987       ; Sound burbler
 c31075 LD A,4                       ; 5 rows (really, P flag is used below)
 *31077 LD (24632),A                 ; This temp value is the loop counter
  31080 CALL 27097                   ; Address of alien row 'A's data into IX
- 31083 CALL 31119                   ; Not sure???
+ 31083 CALL 31119                   ; {Work out this row's left side space,
+                                    ; the width of the horde, and the right
+                                    ; side space. Prime all values ready for
+                                    ; the print routine.}
  31086 CALL 31198                   ; {Print a row of aliens on screen. Alien
                                     ; data is at IX, #R31109 holds screen cx,cy}
  31089 CALL 31987                   ; Sound burbler, row of aliens appearing
@@ -3601,12 +3618,11 @@ c31075 LD A,4                       ; 5 rows (really, P flag is used below)
  31103 JP P,31077                   ; }
  31106 RET                          ;
 
-;
-@label=_NOT_SURE
-b31107 DEFB 0
- 31108 DEFB 0
+
+@label=_ALIEN_ROW_STORE
+b31107 DEFB 0,0                     ; Used to pass around IX value pointer to alien data
 @label=_NEXT_ALIEN_ROW_TO_DRAW
-b31109 DEFB 0                       ; Next screen row to populate with aliens
+ 31109 DEFB 0                       ; Next screen row to populate with aliens
 @label=_LOWEST_ALIEN_YPOS
  31110 DEFB 0                       ; This one is right
 @label=_ALIEN_ROW_LEFT_MARGIN
@@ -3622,46 +3638,55 @@ b31109 DEFB 0                       ; Next screen row to populate with aliens
 @label=_SPRITE_DRAW_SCAN_COUNTER
  31118 DEFB 0
 
-; Find alien row data ???
+; Prepare alien row drawing data
 ;
+; This is looking at the alien row data and working out
+; where on screen to draw the row. It needs to look at the
+; left side space, the number of aliens still left in this row,
+; and the right side space.
+;.
 ; Routine at 31119
 ; .
 ; Used by the routines at #R26154, #R30857, #R30995 and #R31075.
-@label=not_sure_alien_row_data
+;.
+; Updates #R31112, #R31111 and #R31113
+;
+; I:IX Address of alien row data, one starting at #R27327
+@label=prep_alien_row_data
 c31119 LD (31107),IX ; Stash IX
- 31123 LD C,(IX+0)   ; Alien cypos
- 31126 LD B,(IX+1)   ; Alien cxpos
- 31129 LD (31109),BC ; Stash BC, C at lowest address
- 31133 LD A,(24636)  ; Pick up something ???
- 31136 INC A         ; Next
- 31137 SLA A         ; A*2
- 31139 LD C,A        ;
- 31140 LD B,0        ;
- 31142 ADD IX,BC     ; IX += A*2
- 31144 LD A,(31109)  ; ypos in A
- 31147 RRA           ; div 2
- 31148 JR NC,31155   ; Every other one? ALiens are 2 bytes wide
- 31150 LD BC,352     ; ???
- 31153 ADD IX,BC     ; Add more to IX
-*31155 LD (31114),IX ; ???
- 31159 LD A,(31109)  ; {ypos in B
+ 31123 LD C,(IX+0)   ; { Put alien row cypos,cxpos into
+ 31126 LD B,(IX+1)   ;  next alien row to draw
+ 31129 LD (31109),BC ; }
+ 31133 LD A,(24636)  ; Pick up left most colum to draw
+ 31136 INC A         ; {Multiply by 2 because aliens are
+ 31137 SLA A         ;  2 chars wide}
+ 31139 LD C,A        ; {Set IX to point to this row's
+ 31140 LD B,0        ;  alien UDG data
+ 31142 ADD IX,BC     ; }
+ 31144 LD A,(31109)  ; cy in A
+ 31147 RRA           ; Rotate bottom bit into carry
+ 31148 JR NC,31155   ; {Every other draw we switch the alien
+ 31150 LD BC,352     ;  graphics look
+ 31153 ADD IX,BC     ;  left/right UDG selection}
+*31155 LD (31114),IX ; That's the graphics data to use
+ 31159 LD A,(31109)  ; {Put row cy in B
  31162 LD B,A        ; }
- 31163 LD A,(24636)  ; ???
- 31166 SLA A         ; x2
- 31168 ADD A,B       ; 
- 31169 LD (31111),A  ;
- 31172 LD A,(24636)  ; Pick upsomething again ???
- 31175 LD B,A        ;
- 31176 LD A,(24637)  ;
- 31179 SUB B         ;
- 31180 SLA A         ;
- 31182 LD (31112),A  ;
- 31185 LD B,A        ;
- 31186 LD A,(31111)  ;
- 31189 ADD A,B       ;
- 31190 SUB 32        ;
- 31192 NEG           ;
- 31194 LD (31113),A  ;
+ 31163 LD A,(24636)  ; {Pick up leftmost alien and
+ 31166 SLA A         ;  double it to get width in chars.}
+ 31168 ADD A,B       ; Add that to leftmost alien pos
+ 31169 LD (31111),A  ; That's the left margin for this row
+ 31172 LD A,(24636)  ; {Pick up left most active alien column
+ 31175 LD B,A        ;  and the rightmost active alien
+ 31176 LD A,(24637)  ;  column. Subtract one from the other
+ 31179 SUB B         ;  and double it because aliens are 2
+ 31180 SLA A         ;  chars wide.}
+ 31182 LD (31112),A  ; That's the width of the row
+ 31185 LD B,A        ; Put width in B
+ 31186 LD A,(31111)  ; {Pick up the width of the space on the left
+ 31189 ADD A,B       ; and add the width of the aliens in the row.
+ 31190 SUB 32        ; Subtract screen width and negate, gives
+ 31192 NEG           ; the remainder space for the right side.
+ 31194 LD (31113),A  ; }
  31197 RET           ;
 
 ; Print one row of aliens
