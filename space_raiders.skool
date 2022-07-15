@@ -1097,8 +1097,15 @@ b24615 DEFB 0
 ; they move right to left and back again.
 @label=_ALIENS_LEFT_IN_COLs
  24621 DEFB 5,5,5,5,5,5,5,5,5,5,5
-@label=_ALIEN_COLOUR_BAND_ARG
+; Band value used by several of the alien band handling functions.
+; It gets passed around in a rather messy way. During alien movement
+; code it's the band which is being moved sideways. 1 is the top
+; row, 5 is the bottom row.
+@label=_ALIEN_BAND_ARG
  24632 DEFB 0
+; This is set during the period when aliens are moving downwards
+; (as opposed to sideways)
+@label=_MOVING_ALIENS_DOWN_FLAG
  24633 DEFB 0
 ; This stores the lowest screen row (0 to 4, where 4 is the
 ; bottom alien row) which has at least one alien in it.
@@ -1108,9 +1115,9 @@ b24615 DEFB 0
 ; 
 @label=_LOWEST_ACTIVE_ALIEN_ROW
  24634 DEFB 0
-; This is a count of the number of columns on the left side
-; of the horde which have been removed.
-@label=_HORDE_LEFT_SIDE_GAP
+; This is the direction the horde is moving. 1 means left to right.
+; -1 (255) means right to left.
+@label=_HORDE_DIRECTION
  24635 DEFB 0
 ; Which column, starting from the left, still has aliens
 ; in it. Starts off as 0, goes to 1 when left most column
@@ -1464,31 +1471,36 @@ c25034 LD DE,16384   ; Select 0th row
 
 ; Award extra life
 ;
+; Called when the score reaches 1000. Or actually 100, because the
+; score is held as divided-by-10. Add the extra life, buzz the
+; border colour and burble a bit. Exits by jumping to the routine
+; which draws the extra life on screen.
+;.
 ; Used by the routine at #R24703.
 @label=check_for_extra_life
 c25105 LD A,(24609)                 ; {Check if extra life has been awarded.
- 25108 OR A                         ; You only get the one.
+ 25108 OR A                         ; You only get the one extra per game.
  25109 RET NZ                       ; }
  25110 LD HL,(24603)                ; {If this goes greater than 100 then an
- 25113 LD BC,100                    ; extra life is awarded. It's not the score
- 25116 SBC HL,BC                    ; though.
+ 25113 LD BC,100                    ; extra life is awarded.
+ 25116 SBC HL,BC                    ;
  25118 RET C                        ; }
  25119 LD A,1                       ; {Set flag, no more extra lives
  25121 LD (24609),A                 ; }
  25124 LD A,(24611)                 ; {Add extra life
  25127 INC A                        ;
  25128 LD (24611),A                 ; }
- 25131 LD B,8                       ;
+ 25131 LD B,8                       ; 8 burbler cycles
 ; This entry point is used by the routine at #R25155.
 *25133 LD A,(23624)                 ; Pick up port 254 shadow
- 25136 ADD A,8                      ; Don't know what this is for
- 25138 AND 56                       ; Null out bottom 3 bits - border black
- 25140 LD (23624),A                 ; Put it back
+ 25136 ADD A,8                      ; {Roll the border colour
+ 25138 AND 56                       ;  and put the shadow back
+ 25140 LD (23624),A                 ; }
  25143 CALL 31987                   ; Sound burbler
  25146 DEFB 12,40,18,30,24,20,48,10 ; {Extra life sound
  25154 DEFB 0                       ; }
- 25155 DJNZ 25133                   ; {Sound burbler return point
- 25157 JP 25034                     ; }
+ 25155 DJNZ 25133                   ; Sound burbler return point
+ 25157 JP 25034                     ; Exit via the routine which draws the extra life
 
 ; Game over
 ;
@@ -1590,7 +1602,10 @@ b25282 DEFB 0
 ; If yes, choose whether it's going left to right or right to
 ; left. If no, we're done.
 ;.
-; Otherwise, yes, there's a spaceship in play. ???
+; Otherwise, yes, there's a spaceship in play. In that case, every
+; other game cycle the spaceship is moved one pixel and it's
+; checked for a player bullet collision. Every other other
+; cycle we make its noise and exit.
 ;.
 ; Used by the routine at #R24703.
 @label=spaceship_handler
@@ -1617,6 +1632,8 @@ c25442 LD A,(24653)  ; {Is there a spaceship in play?
  25482 LD A,233      ; {New spaceship starts at x=255 minus
  25484 LD (25283),A  ; the width of the graphic }
  25487 RET           ;
+; If we get here there's a spaceship in play. Either move it
+; or make its sound, alternating each game cycle.
 @label=spaceship_in_play
 *25488 LD A,(25285)  ; {Two's comp this, so every other time
  25491 NEG           ;  we play the spaceship noise. That routine
@@ -1713,7 +1730,11 @@ c25628 CALL 31987            ; Sound burbler
 @label=_BONUS_TABLE
 b25639 DEFB 5,5,10,20
 
-; Hit spaceship
+; Spaceship has been hit, award bonus
+;
+; Pick a random value for the bonus out of the table,
+; add that to the player score, then print the bonus
+; value on screen where the spaceship is.
 ;
 ; Used by the routine at #R25592.
 @label=award_spaceship_bonus
@@ -1809,6 +1830,8 @@ c25737 INC IX        ; {Alien bullet structure is
 
 ; Generate alien bullets
 ;
+; ??? Needs work
+;.
 ; Used by the routine at #R25708.
 @label=generate_alien_bullets
 c25749 CALL 32059    ; Churn the "randomisation"
@@ -1824,8 +1847,8 @@ c25749 CALL 32059    ; Churn the "randomisation"
  25763 LD A,(24634)  ; Number of rows aliens might fire from
  25766 LD (25691),A  ; Loop that many times
  25769 LD A,(24638)  ; Player ship pos, X
- 25772 ADD A,7       ; Middle ship xpos?
- 25774 LD B,A        ; Into B
+ 25772 ADD A,7       ; {Middle ship xpos
+ 25774 LD B,A        ; Into B}
  25775 LD A,(32057)  ; Spaceship cycling value
  25778 AND 15        ; Bottom 4 bits
  25780 ADD A,B       ; Add to ship xpos
@@ -1846,7 +1869,7 @@ c25749 CALL 32059    ; Churn the "randomisation"
  25817 POP IX        ; Restore IX
  25819 JR NZ,25832   ; NZ means no collision (check and doc sub)
  25821 LD A,(25691)  ; {Loop back and do it again.
- 25824 DEC A         ;  Why the P flag???
+ 25824 DEC A         ;  
  25825 LD (25691),A  ;
  25828 JP P,25797    ; }
  25831 RET           ;
@@ -2670,24 +2693,25 @@ c26883 CALL 31987                ; Sound burbler
 
 ; Draw the player bullet.
 ;
-; The bullet graphic is cleared from the screen and drawn back in again. ???
-; Still not sure what the sub4 thing is. ???
-;
+; The bullet graphic is cleared from the screen, its position
+; is moved 4 pixels up, and then it's drawn back in again
+; (assuming it's not reached the top of the screen).
+;.
 ; Used by the routine at #R26566.
 @label=draw_player_bullet
-c26916 LD IX,24642   ;
- 26920 LD HL,26870   ;
- 26923 LD A,1        ; Mode clear
- 26925 CALL 31960    ; Clear sprite
- 26928 LD A,(IX+1)   ; Fetch player bullet xpos
- 26931 SUB 4         ; {???
- 26933 CP 4          ;
- 26935 JR Z,26959    ; }
- 26937 LD (IX+1),A   ; Set player bullet xpos
+c26916 LD IX,24642   ; {Clear the player bullet
+ 26920 LD HL,26870   ;  sprite from its current
+ 26923 LD A,1        ;  x,y position.
+ 26925 CALL 31960    ; }
+ 26928 LD A,(IX+1)   ; Fetch player bullet ypos
+ 26931 SUB 4         ; {Move it up 4 pixels. If that puts
+ 26933 CP 4          ;  it 4 pixels from the top of
+ 26935 JR Z,26959    ;  the screen jump off to clear it}
+ 26937 LD (IX+1),A   ; Bullet still on screen, update ypos
 ; This entry point is used by the routine at #R26883.
-*26940 LD HL,26870   ;
- 26943 XOR A         ; Mode set
- 26944 JP 31960      ; Draw sprite
+*26940 LD HL,26870   ; {Draw the player bullet
+ 26943 XOR A         ;  sprite in its new position
+ 26944 JP 31960      ; }
 
 ; Clear player bullet
 ;
@@ -3468,17 +3492,22 @@ b30760 DEFB 140,54,0,33,61,140,195,139
  30848 DEFB 0,0,0,0,0,1,1,0
  30856 DEFB 33
 
-; Move aliens ???
+; Move aliens
 ;
-; March the aliens along and down
+; March the aliens along and down. This is called from the main game
+; loop. It deals with one row of aliens at a time and is called
+; repeatedly which keeps things smooth (bullets moving etc.) as the
+; aliens move left, right and down.
 ;.
 ; Used by the routine at #R24795.
+;
+; I: #R24632 Index of the band of aliens to deal with this time
 @label=move_aliens
-c30857 LD A,(24632)  ; Pick up this
- 30860 LD B,A        ;
- 30861 LD A,(24634)  ; Pick up that
- 30864 CP B          ; A is bigger?
- 30865 JR NC,30888   ;
+c30857 LD A,(24632)  ; Pick up band to deal with this iteration
+ 30860 LD B,A        ; {If the band to deal with is lower than
+ 30861 LD A,(24634)  ;  the lowest band with aliens, then the
+ 30864 CP B          ;  band to deal with has no aliens in it.
+ 30865 JR NC,30888   ;  In which case ???}
  30867 LD (24632),A  ; Put that into this
  30870 LD A,(24633)  ; Pick up third thing
  30873 OR A          ; Zero?
@@ -3487,73 +3516,83 @@ c30857 LD A,(24632)  ; Pick up this
  30879 CALL 27097    ; Address of alien row 'A's data
  30882 CALL 31119    ; {Work out this row's left side space,
                      ; the width of the horde, and the right
-                     ; side space. Prime all values ready for
-                     ; the print routine.}
+                     ; side space. Prime all values.
+                     ; }
  30885 CALL 30959    ;
-*30888 LD A,(24632)  ;
- 30891 OR A          ;
- 30892 JR NZ,30900   ;
+*30888 LD A,(24632)  ; {Which row are we moving sidewards? If it's the
+ 30891 OR A          ;  0th (top) row we make the noise. Otherwise
+ 30892 JR NZ,30900   ;  jump over the noise call.}
+; Top row of aliens has to move along. Make "dit" noise. Sound for
+; moving alien rows down is in #R30995.
  30894 CALL 31987    ; Sound burbler
  30897 DEFB 10,250,0 ; Aliens marching sound
+@label=ma_skip_noise
 *30900 CALL 27097    ; Address of alien row 'A's data
  30903 CALL 31119    ; {Work out this row's left side space,
                      ; the width of the horde, and the right
                      ; side space. Prime all values ready for
                      ; the print routine.}
- 30906 LD A,(24633)  ;
- 30909 OR A          ;
- 30910 JR Z,30938    ;
- 30912 CALL 30995    ;
- 30915 LD A,(24632)  ;
- 30918 OR A          ;
- 30919 JR NZ,30933   ;
- 30921 LD (24633),A  ;
- 30924 LD A,(24635)  ;
+ 30906 LD A,(24633)  ; {If this flag is zero
+ 30909 OR A          ;  jump down a bit
+ 30910 JR Z,30938    ; }
+ 30912 CALL 30995    ; Move this row down
+ 30915 LD A,(24632)  ; {If that wasn't the 0th row
+ 30918 OR A          ;  skip next bit
+ 30919 JR NZ,30933   ; }
+ 30921 LD (24633),A  ; Is this direction?
+ 30924 LD A,(24635)  ; {Invert horde direction
  30927 NEG           ;
- 30929 LD (24635),A  ;
- 30932 RET           ;
-*30933 DEC A         ;
- 30934 LD (24632),A  ;
- 30937 RET           ;
-*30938 CALL 31064    ;
- 30941 LD A,(24632)  ;
- 30944 LD B,A        ;
- 30945 LD A,(24634)  ;
- 30948 CP B          ;
- 30949 JR Z,30959    ;
- 30951 LD A,(24632)  ;
- 30954 INC A         ;
+ 30929 LD (24635),A  ; }
+ 30932 RET           ; Done
+*30933 DEC A         ; {Decrement the arg value
+ 30934 LD (24632),A  ;  and return
+ 30937 RET           ; }
+; Something
+*30938 CALL 31064    ; {Move this row of aliens down one.
+ 30941 LD A,(24632)  ;  If this is the lowest row of
+ 30944 LD B,A        ;  aliens jump out to the left
+ 30945 LD A,(24634)  ;  side check routine. Otherwise
+ 30948 CP B          ;  drop through to prepare for
+ 30949 JR Z,30959    ;  the next row next time round.}
+ 30951 LD A,(24632)  ; {Increment band to check next time
+ 30954 INC A         ;  round and return
  30955 LD (24632),A  ;
- 30958 RET           ;
-*30959 LD A,(24635)  ;
- 30962 CP 1          ;
- 30964 JR Z,30978    ;
- 30966 LD A,(31111)  ;
- 30969 OR A          ;
- 30970 JR NZ,30990   ;
-*30972 LD A,1        ;
- 30974 LD (24633),A  ;
- 30977 RET           ;
-*30978 LD A,(31111)  ;
- 30981 LD B,A        ;
- 30982 LD A,(31112)  ;
- 30985 ADD A,B       ;
- 30986 CP 32         ;
- 30988 JR Z,30972    ;
-*30990 XOR A         ;
- 30991 LD (24632),A  ;
- 30994 RET           ;
+ 30958 RET           ; }
+@label=ma_check_horde_left
+*30959 LD A,(24635)  ; {Pick up horde direction. Is it going
+ 30962 CP 1          ; left to right? Jump if it is.
+ 30964 JR Z,30978    ; }
+ 30966 LD A,(31111)  ; {If this row's left side isn't zero
+ 30969 OR A          ; we exit with a zero flag
+ 30970 JR NZ,30990   ; }
+@label=ma_exit_1
+*30972 LD A,1        ; {Set #R24633 to 1
+ 30974 LD (24633),A  ;  and return
+ 30977 RET           ; }
+@label=ma_check_left
+*30978 LD A,(31111)  ; {Add left side to horde width.
+ 30981 LD B,A        ;  If that's off the right side
+ 30982 LD A,(31112)  ;  of the screen there's no right
+ 30985 ADD A,B       ;  side space to worry about, in
+ 30986 CP 32         ;  which case we exit with flag
+ 30988 JR Z,30972    ;  of 1}
+@label=ma_exit_z
+*30990 XOR A         ; {Set #R24632 to zero
+ 30991 LD (24632),A  ;  and return
+ 30994 RET           ; }
 
-; Move aliens down ???
+; Move one row of aliens down
 ;
-; Aliens have got to one side of the screen, move them down row by row. If
-; they've got to the level of the barriers, remove the barriers. If they've got
-; to the player's level then they've landed and the game will be flagged as
-; over (actioned next game loop).
+; Aliens have got to one side of the screen, move them down row by row. This
+; routine moves one row down and redraws that row. If they've got to the level
+; of the barriers, remove the barriers. If they've got to the player's level
+; then they've landed and the game will be flagged as over (actioned next game loop).
 ; .
 ; Used by the routine at #R30857.
-@label=move_aliens_down
-c30995 CALL 31987       ; Sound burbler
+;
+; I: #31109 Data of alien row to move down, starts cx,cy
+@label=move_one_row_aliens_down
+c30995 CALL 31987       ; Sound burbler, blip as row is moved down
  30998 DEFB 8,250,0     ;
 ; Sound burbler return point
  31001 LD A,(31110)     ; Lowest alien position
@@ -3568,9 +3607,10 @@ c30995 CALL 31987       ; Sound burbler
  31022 CALL 26004       ; Clear one character row (32 chars)
                         ; Alien sprites are 2 chars high, this clears
 			; the top of the alien's heads
- 31025 LD BC,(31109)    ; Top alien ypos?
- 31029 INC B            ; Alien xpos
+ 31025 LD BC,(31109)    ; {Increment the alien row ypos
+ 31029 INC B            ; }
 ; This entry point is used by the routine at #R31064.
+@label=print_moved_row
 *31030 LD IX,(31107)    ; Pointer to alien structure
  31034 LD (IX+0),C      ; New ypos
  31037 LD (IX+1),B      ; New xpos
@@ -3578,7 +3618,8 @@ c30995 CALL 31987       ; Sound burbler
                         ; the width of the horde, and the right
                         ; side space. Prime all values ready for
                         ; the print routine.}
- 31043 JP 31198         ;
+ 31043 JP 31198         ; Exit via the print row code
+; We get here if the aliens have got to the player's level - game over
 @label=aliens_landed
 *31046 LD A,1           ; {Flag that the aliens have landed.
  31048 LD (24613),A     ; }
@@ -3588,11 +3629,11 @@ c30995 CALL 31987       ; Sound burbler
  31060 DEFB 250,250,0   ;
  31063 RET              ;
 ; This entry point is used by the routine at #R30857.
-*31064 LD BC,(31109)    ;
- 31068 LD A,(24635)     ;
- 31071 ADD A,C          ;
- 31072 LD C,A           ;
- 31073 JR 31030         ;
+*31064 LD BC,(31109)    ; Pick up row position, cx in C
+ 31068 LD A,(24635)     ; Pick up horde direction: 1 for rightwards, -1 for leftwards
+ 31071 ADD A,C          ; Add that to this row's left offset
+ 31072 LD C,A           ; Gives new x pos of row
+ 31073 JR 31030         ; Jump to draw the row
 
 ; Initialise draw aliens
 ;
@@ -3643,13 +3684,15 @@ b31107 DEFB 0,0                     ; Used to pass around IX value pointer to al
 ; This is looking at the alien row data and working out
 ; where on screen to draw the row. It needs to look at the
 ; left side space, the number of aliens still left in this row,
-; and the right side space.
+; and the right side space. It also works out if the next row
+; draw has to draw the alien's facing left or right and sets
+; the UDG pointer appropriately.
 ;.
 ; Routine at 31119
 ; .
 ; Used by the routines at #R26154, #R30857, #R30995 and #R31075.
 ;.
-; Updates #R31112, #R31111 and #R31113
+; Updates #R31114, #R31112, #R31111 and #R31113
 ;
 ; I:IX Address of alien row data, one starting at #R27327
 @label=prep_alien_row_data
