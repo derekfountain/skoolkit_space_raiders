@@ -1111,9 +1111,8 @@ b24615 DEFB 0
 ; bottom alien row) which has at least one alien in it.
 ; So if you clear the bottom row this will go from 4 to 3.
 ; This is used to cycle up through up 5 rows of aliens
-; looking to see if the player's bullet is in that row.
-; No point in looking in rows with no aliens.
-; 
+; looking to see if the player's bullet is in that row or
+; whether an alien bullet can start in that row.
 @label=_LOWEST_ACTIVE_ALIEN_ROW
  24634 DEFB 0
 ; This is the direction the horde is moving. 1 means left to right.
@@ -1197,7 +1196,7 @@ c24703 DI            ; Start here
 ; which advances the aliens one row when a screen has been cleared. It then
 ; jumps back to here to start the next screen.
 @label=new_screen_loop
-*24716 CALL 24835    ; {Call a sequence of subroutines to intialise
+*24716 CALL 24835    ; {Call a sequence of subroutines to initialise
  24719 CALL 24806    ;  the game's data structures
  24722 CALL 27030    ;
  24725 CALL 25228    ; }
@@ -1358,6 +1357,7 @@ c24919 LD A,(24614)  ;
 *24928 LD (24614),A  ;
  24931 JP 24716      ; Jump back to new screen
 
+; Temp store for the print score code
 @label=_DIGITS_LEFT_TO_PRINT
 s24934 DEFS 1
 
@@ -1396,7 +1396,7 @@ c24935 LD (24934),A  ; Stash A
  24981 XOR A         ; {Find digit 0 and jump to
  24982 CALL 32159    ;  print it. Tags an extra
  24985 POP BC        ; '0' on the end, this is
- 24986 JP 32275      ; the x10 multiplier!}
+ 24986 JP 32275      ; the x10 multiplier}
 
 ; Reset score, update high score
 ;
@@ -1533,7 +1533,8 @@ c25160 CALL 32302                                     ; Print string which
 
 ; Initialise game screen attributes
 ;
-; Set screen attributes to black
+; Set screen attributes to cyan on black, expect for the spaceship
+; row (magenta) and the player's ship row (white).
 ; .
 ; Used by the routine at #R24703.
 @label=init_attributes
@@ -1568,11 +1569,10 @@ c25228 LD A,(24593)   ; Pick up screen default attributes
  25279 JP 31290       ; return}
 
 ; Data block at 25282
-@label=_SPACESHIP_YPOS           ; Maybe, it's unused in the code
 b25282 DEFB 0
-@label=_SPACESHIP_XPOS
+@label=_SPACESHIP_XPOS           ; Spaceship xpos, ypos is hardcoded to row 1
  25283 DEFB 0
- 25284 DEFB 8
+ 25284 DEFB 0
 @label=_SPACESHIP_SOUND_PULSE
  25285 DEFB 1                    ; Toggled so the spaceship noise stutters
  25286 DEFB 19,1,20,2
@@ -1620,7 +1620,7 @@ c25442 LD A,(24653)  ; {Is there a spaceship in play?
  25457 CP 25         ;
  25459 RET NC        ; }
  25460 LD A,(32058)  ; {OK, new spaceship required. Which
- 25463 BIT 0,A       ; direction should it go. Pick up low
+ 25463 BIT 0,A       ; direction should it go? Pick up low
  25465 JR Z,25477    ; bit of random number}
  25467 LD A,1        ; {New spaceship going left to right.
  25469 LD (24653),A  ; }
@@ -1684,7 +1684,7 @@ c25442 LD A,(24653)  ; {Is there a spaceship in play?
 @label=spaceship_bullet_check
  25561 LD IX,24642   ; {Pick player bullet ypos
  25565 LD A,(IX+1)   ;  from player bullet data}
- 25568 CP 16         ; {Has it reached the spaceship's row?
+ 25568 CP 16         ; {Has it reached the spaceship's row (in px)?
  25570 RET NC        ; Can't be a collision if it hasn't}
  25571 LD A,(25283)  ; {Compare bullet xpos with spaceship xpos.
  25574 CP (IX+0)     ;  Bullet has to be to the right of spaceship
@@ -1736,7 +1736,7 @@ b25639 DEFB 5,5,10,20
 ; Pick a random value for the bonus out of the table,
 ; add that to the player score, then print the bonus
 ; value on screen where the spaceship is.
-;
+;.
 ; Used by the routine at #R25592.
 @label=award_spaceship_bonus
 c25643 LD A,(32058)  ; {Pick up "just about random value"
@@ -1761,9 +1761,10 @@ c25643 LD A,(32058)  ; {Pick up "just about random value"
  25681 LD A,2        ; 2 chars, the print routine adds the extra '0'
  25683 JP 24935      ; Print that number where the ship is
 
-; Add A to HL (1) . There are two copies of this code. . Used by the routine at
-; #R25643.
+; Add A to HL (1)
 ;
+; There are two copies of this code.
+;.
 ; Used by the routine at #R25643.
 @label=add_a_to_hl_1
 c25686 ADD A,L       ;
@@ -1794,7 +1795,7 @@ b25691 DEFB 0
 ; Loop over the alien bullet structures, calling the
 ; #R25853 routine for each one that's in use. For each
 ; slot that's not in use call the routine which decides
-; to fire off another.
+; whether to fire off another.
 ;.
 ; Used by the routine at #R24703.
 @label=move_alien_bullets
@@ -2024,7 +2025,6 @@ c25994 LD A,(IX+1)   ; Alien bullet xpos
 ; Used by the routines at #R25853 and #R26225.
 @label=clear_bottom_char_row
 c26001 LD DE,20704   ; Top scan of bottom row of the screen, where the ship is
-
 ; Clear one character row
 ;
 ; Takes the address of the top scan byte of the leftmost char in a row of 32
@@ -2035,7 +2035,7 @@ c26001 LD DE,20704   ; Top scan of bottom row of the screen, where the ship is
 ;
 ; I:DE Top scan of screen char to start clearing at
 @label=clear_char_row
-c26004 LD C,8        ; We're going to clear 8 scans at screen address in DE
+ 26004 LD C,8        ; We're going to clear 8 scans at screen address in DE
  26006 XOR A         ;
 *26007 LD B,32       ; {Screen width is 32 bytes, write zero into each byte
  26009 PUSH DE       ;
@@ -2197,7 +2197,7 @@ c26154 LD (26097),A  ;
                      ; the width of the horde, and the right
                      ; side space. Prime all values ready for
                      ; the print routine.}
- 26160 LD IX,31107   ;
+ 26160 LD IX,31107   ; ??? Work needed here downwards
  26164 LD A,(26097)  ;
  26167 LD B,A        ; B holds the player bullet xpos in pixels
  26168 SRL A         ; 
