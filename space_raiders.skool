@@ -1775,9 +1775,9 @@ c25686 ADD A,L       ;
 ; 
 @label=_ALIENS_FIRING_LOOP
 b25691 DEFB 0
-@label=_ALIENS_FIRING_SOMETHING2
+@label=_ALIENS_FIRING_XPOS
  25692 DEFB 0
-@label=_ALIENS_FIRING_SOMETHING3
+@label=_ALIENS_FIRING_YPOS
  25693 DEFB 0
 ; Loop counter used for alien bullet iterations
 @label=_ALIEN_BULLET_COUNTER
@@ -1792,17 +1792,19 @@ b25691 DEFB 0
 ; Move alien bullets.
 ;
 ; Loop over the alien bullet structures, calling the
-; #R25853 routine for each one that's in use.
+; #R25853 routine for each one that's in use. For each
+; slot that's not in use call the routine which decides
+; to fire off another.
 ;.
 ; Used by the routine at #R24703.
 @label=move_alien_bullets
 c25708 LD A,4        ; Up to 4 alien bullets in play
- 25710 LD (25694),A  ; Use this generic loop counter
+ 25710 LD (25694),A  ; Loop counter
  25713 LD IX,24644   ; Alien bullet array, x,y entries
-*25717 LD A,(IX+1)   ; {Jump if this bullet slot
- 25720 OR A          ; isn't in use
- 25721 JR Z,25728    ; }
- 25723 CALL 25853    ; Move this alien bullet
+*25717 LD A,(IX+1)   ; {If this bullet slot isn't in 
+ 25720 OR A          ;  use jump off to decide whether
+ 25721 JR Z,25728    ;  an alien should fire}
+ 25723 CALL 25853    ; Slot in use - move this alien bullet
  25726 JR 25731      ; Jump forward to get next bullet
 @label=slot_not_in_use
 *25728 CALL 25749    ; Aliens fire back
@@ -1831,9 +1833,25 @@ c25737 INC IX        ; {Alien bullet structure is
 
 ; Generate alien bullets
 ;
-; ??? Needs work
+; This routine produces, on occasion, a new alien bullet. The value at
+; #R24612 is used to throttle the firing rate. If it determines that a
+; new alien bullet is due from one of the alien rows which still has
+; aliens in it, the player ship's xpos is found and a bit of
+; randomisation is used to focus the new bullet at somewhere around that
+; xpos. This biases the new bullet towards attacking the player.
+; Rather cleverly, the bullet collision detection routine is used to
+; see if the bullet can appear from where the randomisation has positioned
+; it. Instead of taking the player's bullet and seeing if it has collided
+; with an alien, the new randomised alien bullet position is used to see
+; if it could have emanated from an alien. If the routine says "yes, that's
+; a collision" then the bullet could have come from that alien and it's
+; allowed to fire. If not the bullet would appear from thin air so that's
+; not allowed. Good idea that.
 ;.
 ; Used by the routine at #R25708.
+;
+; I:IX A slot in the #R24644 array which can have a new alien bullet
+; I: #R24612 Alien bullet fire rate
 @label=generate_alien_bullets
 c25749 CALL 32059    ; Churn the "randomisation"
  25752 LD A,(32055)  ; Pick up barrier cycler
@@ -1845,45 +1863,51 @@ c25749 CALL 32059    ; Churn the "randomisation"
  25762 RET C         ;  than rate of fire, return. The higher the
                      ;  the rate of fire value, the less likely
                      ;  we are to return, hence more bullets}
- 25763 LD A,(24634)  ; Number of rows aliens might fire from
+ 25763 LD A,(24634)  ; Lowest row of aliens with some aliens in it
  25766 LD (25691),A  ; Loop that many times
- 25769 LD A,(24638)  ; Player ship pos, X
- 25772 ADD A,7       ; {Middle ship xpos
- 25774 LD B,A        ; Into B}
- 25775 LD A,(32057)  ; Spaceship cycling value
- 25778 AND 15        ; Bottom 4 bits
+ 25769 LD A,(24638)  ; {Find middle of player ship cx
+ 25772 ADD A,7       ; }
+ 25774 LD B,A        ; Into B
+ 25775 LD A,(32057)  ; {Pick up a random value
+ 25778 AND 15        ;  in the range 0 to 15}
  25780 ADD A,B       ; Add to ship xpos
  25781 LD (25692),A  ; Stash
- 25784 LD A,(32056)  ; Barrier cycler
- 25787 CP 127        ; High A value to skip next bit
+ 25784 LD A,(32056)  ; Another random number
+ 25787 CP 127        ; Two to one to skip next bit
  25789 JR NC,25797   ;
- 25791 LD A,(32057)  ; Spaceship cycling value again
- 25794 LD (25692),A  ; Stash
-@label=loopy_thing
-*25797 LD A,(25691)  ; Fetch this back
+; Two to one, replace the previous xpos value with a 
+; randomised one
+ 25791 LD A,(32057)  ; Pick up random again
+ 25794 LD (25692),A  ; Stash, replacing previous
+@label=ab_loop
+*25797 LD A,(25691)  ; Fetch loop counter
  25800 PUSH IX       ; IX must be passed in
  25802 CALL 27097    ; Address of alien row 'A's data
- 25805 LD A,(IX+1)   ; Value from structure
- 25808 LD (25693),A  ; Stash it here
- 25811 LD A,(25692)  ; Pick this up again
- 25814 CALL 26154    ; Collision check
+ 25805 LD A,(IX+1)   ; Row ypos
+ 25808 LD (25693),A  ; Save it here
+ 25811 LD A,(25692)  ; Pick firing xpos up again
+ 25814 CALL 26154    ; Collision check - does it match an alien location?
  25817 POP IX        ; Restore IX
- 25819 JR NZ,25832   ; NZ means no collision (check and doc sub)
- 25821 LD A,(25691)  ; {Loop back and do it again.
- 25824 DEC A         ;  
+ 25819 JR NZ,25832   ; {NZ means collision, which would mean the bullet
+                     ;  emanated from an xpos where there's an alien.
+                     ;  We're good to start a bullet there.}
+ 25821 LD A,(25691)  ; {If we didn't generate a bullet
+ 25824 DEC A         ;  loop back and have another go.
  25825 LD (25691),A  ;
  25828 JP P,25797    ; }
  25831 RET           ;
-*25832 LD A,(25693)  ; Fetch this back
- 25835 INC A         ; +2
- 25836 INC A         ;
- 25837 SLA A         ; x2
- 25839 SLA A         ; x4
- 25841 SLA A         ; x8
- 25843 LD (IX+1),A   ; That value from structure again
- 25846 LD A,(25692)  ; Put this in IX+0
- 25849 LD (IX+0),A   ;
- 25852 RET           ; I wonder if this is looping over aliens trying to decide which one, if any, should fire?
+; If we arrive here we need to generate a new alien bullet
+@label=ab_new_alien_bullet
+*25832 LD A,(25693)  ; Fetch bullet cy back
+ 25835 INC A         ; {Add 2, then multiply by 8
+ 25836 INC A         ;  That makes the ypos at the alien's feet
+ 25837 SLA A         ; 
+ 25839 SLA A         ; 
+ 25841 SLA A         ; }
+ 25843 LD (IX+1),A   ; That becomes the alien bullet's cy location
+ 25846 LD A,(25692)  ; Pick up new bullet xpos
+ 25849 LD (IX+0),A   ; That becomes the alien bullet's cx location
+ 25852 RET           ; 
 
 ; Move alien bullet
 ;
@@ -4330,56 +4354,56 @@ c32034 LD A,(31986)  ; Pick up saved border colour
  32052 OUT (254),A   ; }
  32054 RET           ;
 
-; This value is cycled to maintain a sort of randomness
-; in the way pixels are nibbled out of the barriers when
-; alien bullets hit them
-@label=_BARRIER_CYCLER_H
-b32055 DEFB 186
-@label=_BARRIER_CYCLER_L
- 32056 DEFB 93
-
-; Cycling value
+; Randomish numbers
 ;
-; This is a value which is constantly incremented, and allowed
-; to cycle. It's used as "random" value to introduce the spaceship
-; and to decide bonus amount for hitting a spaceship.
-@label=_SPACESHIP_CYCLING_VALUE_H
-b32057 DEFB 108
-@label=_SPACESHIP_CYCLING_VALUE_L
- 32058 DEFB 77
+; These values are cycled to maintain a sort of randomness
+; in various things: spaceships appearing, spaceship bonus
+; values, alien bullet appearance and placement, the way
+; pixels are nibbled out of the barriers when bullets hit
+; them, etc
+@label=_CYCLER_1    
+b32055 DEFB 186     ; This one's used for barriers
+@label=_CYCLER_2    
+ 32056 DEFB 93      ; This one's used for alien bullets
+@label=_CYCLER_3    
+ 32057 DEFB 108     ; This one's used for spaceships and alien bullets
+@label=_CYCLER_4    
+ 32058 DEFB 77      ; This one's used for spaceship and its bonus
 
 ; Update cycler values
 ;
 ; This updates the values used to add randomness to the
 ; spacehsip appearance timing and the way the barriers
-; are nibbled away by the alien's bullets. It's not
+; are nibbled away by the alien's bullets, etc. It's not
 ; random as such, more a churn of numbers to break up
 ; patterns.
 ;.
+; The algorithm hasn't been properly analysed.
+;.
 ; Used by the routines at #R25749 and #R31527.
 @label=update_cycler_values
-c32059 LD HL,(32057) ; Spaceship cycler value into HL
+c32059 LD HL,(32057) ; Cycler value into HL
  32062 RL L          ;
  32064 RL H          ; x2
  32066 RL L          ;
  32068 RL H          ; x4
  32070 LD C,H        ; That goes into C
- 32071 LD A,(32055)  ; Barrier cycler value into A
+ 32071 LD A,(32055)  ; Cycler value into A
  32074 RLA           ; x2
  32075 LD B,A        ; That goes into B
- 32076 LD DE,(32056) ; Amalgamation of barrier cycler and spaceship cycler
+ 32076 LD DE,(32056) ; Amalgamation of cycler values
  32080 RL E          ; 
  32082 RL D          ; x2
  32084 RES 7,D       ; Limit to 32767
  32086 LD HL,(32055) ; {Add the value worked out into BC
- 32089 ADD HL,BC     ;  into barrier cycler value
+ 32089 ADD HL,BC     ;  into this cycler value
  32090 LD (32055),HL ; }
  32093 LD HL,(32057) ; {Add the value worked out into DE
- 32096 ADC HL,DE     ; into the spaceship cycling value
+ 32096 ADC HL,DE     ; into this cycling value
  32098 RES 7,H       ; limited to 32767
  32100 LD (32057),HL ; }
  32103 RET P         ;
- 32104 LD HL,32055   ; {Don't let barrier
+ 32104 LD HL,32055   ; {Don't let this
 *32107 INC HL        ; cycling value
  32108 RET NZ        ; settle at zero
  32109 INC HL        ;
