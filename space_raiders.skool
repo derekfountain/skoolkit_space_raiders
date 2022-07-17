@@ -2186,45 +2186,54 @@ b26097 DEFB 0
 ; Check whether the bullet's X axis position matches an alien's location. We
 ; already know that the Y axis matches one, so if this does too we have a hit.
 ; .
+; This function is also used to see if a suggested new alien bullet lines up
+; with an alien. If it doesn't then that alien bullet isn't generated.
+;.
 ; Used by the routines at #R25749 and #R26049.
 ;
-; I:A  Player bullet X pos in pixels
+; I:A  Bullet X pos in pixels
 ; I:IX Pointer to alien structure which has y-axis collision
 ; O:A 0 for no collision, 1 for collision
 @label=bullet_alien_coll_xaxis
-c26154 LD (26097),A  ;
+c26154 LD (26097),A  ; Save bullet xpos
  26157 CALL 31119    ; {Work out this row's left side space,
                      ; the width of the horde, and the right
-                     ; side space. Prime all values ready for
-                     ; the print routine.}
- 26160 LD IX,31107   ; ??? Work needed here downwards
- 26164 LD A,(26097)  ;
- 26167 LD B,A        ; B holds the player bullet xpos in pixels
- 26168 SRL A         ; 
- 26170 SRL A         ; 
- 26172 SRL A         ; A holds the player bullet xpos in chars
- 26174 LD (26100),A  ; Update player bullet xpos in chars
- 26177 SUB (IX+4)    ;
- 26180 JR C,26223    ;
- 26182 BIT 0,A       ;
- 26184 JR Z,26190    ;
- 26186 BIT 2,B       ;
- 26188 JR NZ,26223   ;
-*26190 CP (IX+5)     ;
- 26193 JR NC,26223   ;
- 26195 AND 254       ;
- 26197 ADD A,(IX+4)  ;
- 26200 LD (26100),A  ; Update player bullet xpos in chars
- 26203 SUB (IX+2)    ;
- 26206 LD (26098),A  ;
- 26209 LD C,A        ;
- 26210 LD B,0        ;
- 26212 LD IX,(31107) ;
+                     ; side space.}
+ 26160 LD IX,31107   ; IX points to the alien data structure
+ 26164 LD A,(26097)  ; Pick up bullet xpos again
+ 26167 LD B,A        ; B holds the player bullet xpos in chars
+ 26168 SRL A         ; x2
+ 26170 SRL A         ; x4
+ 26172 SRL A         ; x8, now A holds the player bullet xpos in px
+ 26174 LD (26100),A  ; {That's the explosion cx value (we've not yet
+                     ; determined it's needed, but there it is)}
+ 26177 SUB (IX+4)    ; Alien row left margin
+ 26180 JR C,26223    ; Left of leftmost alien, no hit
+ 26182 BIT 0,A       ; {A is cx, if it's an even value the bullet is
+                     ; on the left half of the 2 char alien
+ 26184 JR Z,26190    ; which means the bullet is hitting}
+ 26186 BIT 2,B       ; B is x in px, check bit 2
+ 26188 JR NZ,26223   ; {If that one is set the bullet is going through
+                     ; the 2 pixel gap to the right of the alien graphic}
+*26190 CP (IX+5)     ; Compare with width of alien row
+ 26193 JR NC,26223   ; If the bullet has gone up the right side, no hit
+; If we arrive here the alien is hit in the x axis.
+; A contains row xchar location of hit (so if the leftmost alien
+; is hit A contains 0 or 1, regardless of where the row is on screen)
+ 26195 AND 254       ; Reset cx lowest bit, so left half of alien
+ 26197 ADD A,(IX+4)  ; Add to row's left margin
+ 26200 LD (26100),A  ; That's where the explosion needs to go
+ 26203 SUB (IX+2)    ; {Next draw is from this cx
+ 26206 LD (26098),A  ; }
+ 26209 LD C,A        ;{Pick up leftmost cx,cy of alien row
+ 26210 LD B,0        ; and add hit alien's offset}
+ 26212 LD IX,(31107) ; 
  26216 ADD IX,BC     ;
- 26218 LD A,(IX+2)   ;
+ 26218 LD A,(IX+2)   ; A goes back with cx
+; Collision exit point
  26221 OR A          ; Flag collision
  26222 RET           ;
-; No collision
+; No collision exit point
 @label=no_xpos_hit
 *26223 XOR A         ; Flag no collision
  26224 RET           ;
@@ -3723,13 +3732,16 @@ c31075 LD A,4                       ; 5 rows (really, P flag is used below)
  31103 JP P,31077                   ; }
  31106 RET                          ;
 
-
-@label=_ALIEN_ROW_STORE
-b31107 DEFB 0,0                     ; Used to pass around IX value pointer to alien data
+; Alien data structure
+;
+; This structure contains an assortment of values used to manage the aliens.
+@label=_ALIEN_ROW_PTR
+b31107 DEFB 0,0                     ; Pointer to an entry in #R27327
 @label=_NEXT_ALIEN_ROW_TO_DRAW
  31109 DEFB 0                       ; Next screen row to populate with aliens
 @label=_LOWEST_ALIEN_YPOS
- 31110 DEFB 0                       ; This one is right
+ 31110 DEFB 0                       ; {cy of the bottom of the lowest row on screen.
+                                    ;  Used and updated by alien movement and other code}
 @label=_ALIEN_ROW_LEFT_MARGIN
  31111 DEFB 0                       ; How far the aliens are from left side
 @label=_ALIEN_ROW_BANK_WIDTH       
