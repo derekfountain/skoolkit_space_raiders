@@ -1084,6 +1084,7 @@ b24605 DEFB 5        ; Speed factor to compensate when there's a spaceship to be
 @label=_ALIENS_START_ROW
  24614 DEFB 0        ;
 
+; Number of aliens remaining
 @label=_NUM_ALIENS_REMAINING
 b24615 DEFB 0
 ; Table of number of aliens left in each row. Starts of with 5 
@@ -1773,7 +1774,7 @@ c25686 ADD A,L       ;
  25689 INC H         ;
  25690 RET           ;
 
-; 
+; Runtime data for alien bullet firing loop
 @label=_ALIENS_FIRING_LOOP
 b25691 DEFB 0
 @label=_ALIENS_FIRING_XPOS
@@ -2151,8 +2152,11 @@ b26097 DEFB 0
 @label=_EXPLOSION_GFX_BOTTOM
  26104 DEFB 0,0
 ; UDGs, interleaved. It's a 16x11 image, so 0th row bytes 0 and 1, then 1st row
-; bytes 0 and 1, etc. The bottom 5 scans are empty. I gave up trying to get
-; SkoolKit to render it.
+; bytes 0 and 1, etc. The bottom 5 scans are empty.
+;.
+; #HTML[#UDG26106,56,4,2(0)] #HTML[#UDG26107,56,4,2(1)]
+;.
+; #HTML[#UDG26122,56,4,2(2)] #HTML[#UDG26123,56,4,2(3)]
 @label=_EXPLOSION_UDG_TOP
  26106 DEFB 16,128
  26108 DEFB 9,16
@@ -2475,7 +2479,7 @@ c26484 ADD A,L       ;
 
 ; Move bullet temp
 @label=_MOVE_BULLET_LOOP
-s26489 DEFS 1
+b26489 DEFB 0
 
 ; Player bullet interception detection
 ;
@@ -2766,7 +2770,7 @@ c26947 LD IX,24642   ;
 ; Temporary store for where the new ship should end up at the end of the scroll
 ; animation.
 @label=_NEW_SHIP_TARGET_XPOS
-s26964 DEFS 1
+b26964 DEFB 0
 
 ; New player ship
 ;
@@ -2829,8 +2833,9 @@ c27005 LD C,32       ; 2 UDGs which are 16 scans high, so 32 reps
  27026 JR NZ,27007   ; }
  27028 RET           ;
 
+; Temporary value used for initialising aliens
 @label=_ALIEN_INIT_COUNTER
-s27029 DEFS 1
+b27029 DEFB 0
 
 ; Initialise alien position data
 ;
@@ -2919,21 +2924,40 @@ c27114 LD HL,27127   ; Start with first alien UDG
 ; Aliens are UDGs, 2 bytes per scan. They're 12 bits wide with a 4 bit
 ; gap on the right side, and 12 bits tall with a 4 bit gap at the bottom.
 ; Each graphic is 16x16 pixels, so 32 bytes per alien.
+;.
+; #HTML[#UDG27127,56,4,2(arl1)] #HTML[#UDG27128,56,4,2(arl2)]
+;.
+; #HTML[#UDG27143,56,4,2(arl3)] #HTML[#UDG27144,56,4,2(arl4)]
 @label=_RED_ALIEN_LOOK_LEFT
 b27127 DEFB 31,128,63,192,127,224,255,240,222,240,222,240,222,240,255,240
  27143 DEFB 63,128,48,192,96,96,192,48,0,0,0,0,0,0,0,0
+; #HTML[#UDG27159,56,4,2(arr1)] #HTML[#UDG27160,56,4,2(arr2)]
+;.
+; #HTML[#UDG27175,56,4,2(arr3)] #HTML[#UDG27176,56,4,2(arr4)]
 @label=_RED_ALIEN_LOOK_RIGHT
  27159 DEFB 31,128,63,192,127,224,255,240,247,176,247,176,247,176,255,240
  27175 DEFB 31,128,25,128,25,128,25,128,0,0,0,0,0,0,0,0
+; #HTML[#UDG27191,56,4,2(agl1)] #HTML[#UDG27192,56,4,2(agl2)]
+;.
+; #HTML[#UDG27207,56,4,2(agl3)] #HTML[#UDG27208,56,4,2(agl4)]
 @label=_GREEN_ALIEN_LOOK_LEFT
  27191 DEFB 192,48,192,48,255,240,134,16,231,144,134,16,255,240,47,64
  27207 DEFB 79,32,134,16,64,32,32,64,0,0,0,0,0,0,0,0
+; #HTML[#UDG27223,56,4,2(agr1)] #HTML[#UDG27224,56,4,2(agr2)]
+;.
+; #HTML[#UDG27239,56,4,2(agr3)] #HTML[#UDG27240,56,4,2(agr4)]
 @label=_GREEN_ALIEN_LOOK_RIGHT
  27223 DEFB 192,48,192,48,255,240,134,16,158,112,134,16,255,240,47,64
  27239 DEFB 47,64,38,64,32,64,32,64,0,0,0,0,0,0,0,0
+; #HTML[#UDG27255,56,4,2(ayl1)] #HTML[#UDG27256,56,4,2(ayl2)]
+;.
+; #HTML[#UDG27271,56,4,2(ayl3)] #HTML[#UDG27272,56,4,2(ayl4)]
 @label=_YELLOW_ALIEN_LOOK_LEFT
  27255 DEFB 48,192,48,192,9,0,15,0,31,128,63,192,127,224,176,208
  27271 DEFB 159,144,9,0,16,128,9,0,0,0,0,0,0,0,0,0
+; #HTML[#UDG27287,56,4,2(ayr1)] #HTML[#UDG27288,56,4,2(ayr2)]
+;.
+; #HTML[#UDG27303,56,4,2(ayr3)] #HTML[#UDG27304,56,4,2(ayr4)]
 @label=_YELLOW_ALIEN_LOOK_RIGHT
  27287 DEFB 192,48,192,48,32,64,22,128,31,128,63,192,255,240,48,192
  27303 DEFB 31,128,9,0,16,128,32,64,0,0,0,0,0,0,0,0
@@ -2959,11 +2983,14 @@ b27127 DEFB 31,128,63,192,127,224,255,240,222,240,222,240,222,240,255,240
 @label=_ALIEN_ROWS_DATA
  27327 DEFB 0,0,0,0,0,0,0,0
 
+; Original assembler strings
+;
 ; This is from the assembler used for the original image. :)
 ; It comes from ASM.COM:
 ; https://www.iee.et.tu-dresden.de/~kc-club/09/RUBRIK23.HTM which is a CP/M
 ; assembler. Most of these messages appear to come from it, so quite a lot of
 ; the tool appears to be in here.
+;.
 ; Message at 27335
 t27335 DEFM "Fatal error(s)"
 
@@ -3984,11 +4011,13 @@ t31424 DEFM "0000",0
 @label=_BARRIER_BOTTOM
 t31429 DEFM "5345",0
 
+; Temporary value for barrier loop
 @label=_DRAW_BARRIER_COUNT
-s31434 DEFS 1
+b31434 DEFB 0
 
+; Temporary value for barrier rows
 @label=_BARRIER_ROWS_TO_DRAW
-s31435 DEFS 1
+b31435 DEFB 0
 
 ; Draw barriers
 ;
