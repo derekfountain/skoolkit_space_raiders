@@ -1576,6 +1576,7 @@ b25282 DEFB 0
  25284 DEFB 0
 @label=_SPACESHIP_SOUND_PULSE
  25285 DEFB 1                    ; Toggled so the spaceship noise stutters
+@label=_GFX_SPACESHIP_R_TO_L
  25286 DEFB 19,1,20,2
  25290 DEFB 3,3,7,3,12,3,17,3
  25298 DEFB 21,3,2,4,7,4,12,4
@@ -1586,7 +1587,9 @@ b25282 DEFB 0
  25338 DEFB 3,0,4,5,4,10,4,15
  25346 DEFB 4,20,4,1,5,5,5,10
  25354 DEFB 5,15,5,19,5,2,6,3
- 25362 DEFB 7,255,4,1,3,2,2,3
+ 25362 DEFB 7,255
+@label=_GFX_SPACESHIP_L_TO_R
+ 25364 DEFB 4,1,3,2,2,3
  25370 DEFB 6,3,11,3,16,3,20,3
  25378 DEFB 1,4,6,4,11,4,16,4
  25386 DEFB 21,4,2,5,6,5,11,5
@@ -2637,9 +2640,9 @@ c26675 LD A,(24640)  ; Player ship position adjustment, -1, 0 or 1
  26680 JP P,26684    ; {1 has an odd number of bits. -1, even. A=0 if moving
  26683 XOR A         ; right, A=1 if moving left.}
 *26684 LD IX,24638   ; IX points to player ship pos, X
- 26688 CALL 26712    ; Select sprite data based on A
+ 26688 CALL 26712    ; Select clear sprite data based on A, into HL
  26691 LD A,1        ; Mode clear
- 26693 CALL 31960    ; Clear sprite side pixels
+ 26693 CALL 31960    ; Clear sprite side pixels, leaves HL at draw sprite data
  26696 XOR A         ; Mode set
  26697 CALL 31960    ; Draw sprite side pixels
  26700 LD A,(24640)  ; {Pick up adjustment again and add it to the current xpos
@@ -2649,7 +2652,7 @@ c26675 LD A,(24640)  ; Player ship position adjustment, -1, 0 or 1
  26708 LD (24638),A  ; }
  26711 RET           ;
 
-; Select player ship sprite data
+; Select player ship clear sprite data
 ;
 ; Set HL to #R26722 if A is 1, or #R26796 is A is 0.
 ; .
@@ -2657,12 +2660,12 @@ c26675 LD A,(24640)  ; Player ship position adjustment, -1, 0 or 1
 ; the correct sprite data ready for the redraw.
 ;
 ; I:A 0 if player moving right, 1 if player moving left
-; O:HL Sprite data address
-@label=select_player_ship_sprite
-c26712 LD HL,26722   ;
+; O:HL Clear sprite data address
+@label=select_clear_player_ship_sprite
+c26712 LD HL,26722   ; #R26722
  26715 OR A          ;
  26716 RET NZ        ; Return if A=1, hence left move
- 26717 LD HL,26796   ;
+ 26717 LD HL,26796   ; #R26796
  26720 RET           ; Return if A=0, hence right move
 
 ; Keypress routine's fire-released flag
@@ -2681,32 +2684,123 @@ b26721 DEFB 0        ; Fire released flag, local to keypress routine
 ; clear as sprite moves left or right. These define an edge of the sprite
 ; rather than the whole sprite itself. The edge is removed by one set of data
 ; and drawn in by the other set.
-@label=_GFX_PLAYER_SHIP_LEFT_CLEAR
+;.
+;#HTML(<img src="../images/player_ship.gif"/>)
+;.
+; #UDGARRAY3,56,4(0;0;0)(*pslc)
+; #PLOT(#PEEK26722,#PEEK26723)(pslc)
+; #PLOT(#PEEK26724,#PEEK26725)(pslc)
+; #PLOT(#PEEK26726,#PEEK26727)(pslc)
+; #PLOT(#PEEK26728,#PEEK26729)(pslc)
+; #PLOT(#PEEK26730,#PEEK26731)(pslc)
+; #PLOT(#PEEK26732,#PEEK26733)(pslc)
+; #PLOT(#PEEK26734,#PEEK26735)(pslc)
+; #PLOT(#PEEK26736,#PEEK26737)(pslc)
+; #PLOT(#PEEK26738,#PEEK26739)(pslc)
+; #PLOT(#PEEK26740,#PEEK26741)(pslc)
+; #PLOT(#PEEK26742,#PEEK26743)(pslc)
+; #PLOT(#PEEK26744,#PEEK26745)(pslc)
+; #PLOT(#PEEK26746,#PEEK26747)(pslc)
+; #PLOT(#PEEK26748,#PEEK26749)(pslc)
+; #PLOT(#PEEK26750,#PEEK26751)(pslc)
+; #PLOT(#PEEK26752,#PEEK26753)(pslc)
+; #PLOT(#PEEK26754,#PEEK26755)(pslc)
+; #PLOT(#PEEK26756,#PEEK26757)(pslc)
+; #UDGARRAY*pslc(pslc)
+@label=_GFX_PLAYER_SHIP_RIGHT_CLEAR
 b26722 DEFB 10,0,9,1,1,2,9
  26729 DEFB 2,19,2,1,3,9,3,19
  26737 DEFB 3,1,4,6,4,18,4,1
  26745 DEFB 5,1,6,6,6,18,6,1
  26753 DEFB 7,7,7,19,7,255
-@label=_GFX_PLAYER_SHIP_LEFT_DRAW
+; #UDGARRAY3,56,4(0;0;0)(*psld)
+; #PLOT(#PEEK26759,#PEEK26760)(psld)
+; #PLOT(#PEEK26761,#PEEK26762)(psld)
+; #PLOT(#PEEK26763,#PEEK26764)(psld)
+; #PLOT(#PEEK26765,#PEEK26766)(psld)
+; #PLOT(#PEEK26767,#PEEK26768)(psld)
+; #PLOT(#PEEK26769,#PEEK26770)(psld)
+; #PLOT(#PEEK26771,#PEEK26772)(psld)
+; #PLOT(#PEEK26773,#PEEK26774)(psld)
+; #PLOT(#PEEK26775,#PEEK26776)(psld)
+; #PLOT(#PEEK26777,#PEEK26778)(psld)
+; #PLOT(#PEEK26779,#PEEK26780)(psld)
+; #PLOT(#PEEK26781,#PEEK26782)(psld)
+; #PLOT(#PEEK26783,#PEEK26784)(psld)
+; #PLOT(#PEEK26785,#PEEK26786)(psld)
+; #PLOT(#PEEK26787,#PEEK26788)(psld)
+; #PLOT(#PEEK26789,#PEEK26790)(psld)
+; #PLOT(#PEEK26791,#PEEK26792)(psld)
+; #PLOT(#PEEK26793,#PEEK26794)(psld)
+; #UDGARRAY*psld(psld)
+@label=_GFX_PLAYER_SHIP_RIGHT_DRAW
  26759 DEFB 11,0
  26761 DEFB 12,1,2,2,12,2,20,2
  26769 DEFB 2,3,12,3,20,3,3,4
  26777 DEFB 15,4,20,4,20,5,3,6
  26785 DEFB 15,6,20,6,2,7,14,7
  26793 DEFB 20,7,255
-@label=_GFX_PLAYER_SHIP_RIGHT_CLEAR
+; #UDGARRAY3,56,4(0;0;0)(*psrc)
+; #PLOT(#PEEK26796,#PEEK26797)(psrc)
+; #PLOT(#PEEK26798,#PEEK26799)(psrc)
+; #PLOT(#PEEK26800,#PEEK26801)(psrc)
+; #PLOT(#PEEK26802,#PEEK26803)(psrc)
+; #PLOT(#PEEK26804,#PEEK26805)(psrc)
+; #PLOT(#PEEK26806,#PEEK26807)(psrc)
+; #PLOT(#PEEK26808,#PEEK26809)(psrc)
+; #PLOT(#PEEK26810,#PEEK26811)(psrc)
+; #PLOT(#PEEK26812,#PEEK26813)(psrc)
+; #PLOT(#PEEK26814,#PEEK26815)(psrc)
+; #PLOT(#PEEK26816,#PEEK26817)(psrc)
+; #PLOT(#PEEK26818,#PEEK26819)(psrc)
+; #PLOT(#PEEK26820,#PEEK26821)(psrc)
+; #PLOT(#PEEK26822,#PEEK26823)(psrc)
+; #PLOT(#PEEK26824,#PEEK26825)(psrc)
+; #PLOT(#PEEK26826,#PEEK26827)(psrc)
+; #PLOT(#PEEK26828,#PEEK26829)(psrc)
+; #PLOT(#PEEK26830,#PEEK26831)(psrc)
+; #UDGARRAY*psrc(psrc)
+@label=_GFX_PLAYER_SHIP_LEFT_CLEAR
  26796 DEFB 10,0,11,1,1
  26801 DEFB 2,11,2,19,2,1,3,11
  26809 DEFB 3,19,3,2,4,14,4,19
  26817 DEFB 4,19,5,2,6,14,6,19
  26825 DEFB 6,1,7,13,7,19,7,255
-@label=_GFX_PLAYER_SHIP_RIGHT_DRAW
+; #UDGARRAY3,56,4(0;0;0)(*psrd)
+; #PLOT(#PEEK26833,#PEEK26834)(psrd)
+; #PLOT(#PEEK26835,#PEEK26836)(psrd)
+; #PLOT(#PEEK26837,#PEEK26838)(psrd)
+; #PLOT(#PEEK26839,#PEEK26840)(psrd)
+; #PLOT(#PEEK26841,#PEEK26842)(psrd)
+; #PLOT(#PEEK26843,#PEEK26844)(psrd)
+; #PLOT(#PEEK26845,#PEEK26846)(psrd)
+; #PLOT(#PEEK26847,#PEEK26848)(psrd)
+; #PLOT(#PEEK26849,#PEEK26850)(psrd)
+; #PLOT(#PEEK26851,#PEEK26852)(psrd)
+; #PLOT(#PEEK26853,#PEEK26854)(psrd)
+; #PLOT(#PEEK26855,#PEEK26856)(psrd)
+; #PLOT(#PEEK26857,#PEEK26858)(psrd)
+; #PLOT(#PEEK26859,#PEEK26860)(psrd)
+; #PLOT(#PEEK26861,#PEEK26862)(psrd)
+; #PLOT(#PEEK26863,#PEEK26864)(psrd)
+; #PLOT(#PEEK26865,#PEEK26866)(psrd)
+; #PLOT(#PEEK26867,#PEEK26868)(psrd)
+; #UDGARRAY*psrd(psrd)
+@label=_GFX_PLAYER_SHIP_LEFT_DRAW
  26833 DEFB 9,0,8,1,0,2,8,2
  26841 DEFB 18,2,0,3,8,3,18,3
  26849 DEFB 0,4,5,4,17,4,0,5
  26857 DEFB 0,6,5,6,17,6,0,7
  26865 DEFB 6,7,18,7,255
 ; 6 pixel high straight line, same as alien bullet
+; #UDG0(*pb)
+; #PLOT(#PEEK26870,#PEEK26871)(pb)
+; #PLOT(#PEEK26872,#PEEK26873)(pb)
+; #PLOT(#PEEK26874,#PEEK26875)(pb)
+; #PLOT(#PEEK26876,#PEEK26877)(pb)
+; #PLOT(#PEEK26878,#PEEK26879)(pb)
+; #PLOT(#PEEK26880,#PEEK26881)(pb)
+; #UDGARRAY*pb(pb)
 @label=_GFX_PLAYER_BULLET
  26870 DEFB 0
  26871 DEFB 0,0,1
@@ -4300,6 +4394,7 @@ c31922 LD HL,31666   ; Table of clever values
 ; I:A Mode for pixel (0=set,1=clear,2=XOR,3=ClearByte)
 ; I:HL Sprite data, list of x,y offset pairs, 0xFF to end
 ; I:IX Pointer to xpos,ypos screen location (chars)
+; O:HL 1 byte off the end of the sprite data, which is often the next sprite to draw
 @label=sprite_draw_or_clear
 c31960 CALL 32374    ; Prime jump at 32362, consumes A
 *31963 LD A,(HL)     ; {Pick up next byte in sequence. x_offset End if negative
