@@ -4,4 +4,4 @@ A [SkoolKit](https://skoolkit.ca/docs/skoolkit/whatis.html) based disassembly of
 classic ZX Spectrum game [Space Raiders](https://spectrumcomputing.co.uk/entry/4678/ZX-Spectrum/Space_Raiders),
 from Psion in 1982.
 
-Currently very much a work in progress, mostly because I don't know how to use SkoolKit very well.
+Derek Fountain, July'22
