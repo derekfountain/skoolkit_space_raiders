@@ -1571,10 +1571,10 @@ c25228 LD A,(24593)   ; Pick up screen default attributes
 
 ; Data block at 25282
 b25282 DEFB 0
-; Spaceship xpos, ypos is hardcoded to row 1
+; Spaceship xpos, ypos is hardcoded to row 1 (8 pixels down)
 @label=_SPACESHIP_XPOS
  25283 DEFB 0
- 25284 DEFB 0
+ 25284 DEFB 8
 @label=_SPACESHIP_SOUND_PULSE
  25285 DEFB 1                    ; Toggled so the spaceship noise stutters
 @label=_GFX_SPACESHIP_R_TO_L
