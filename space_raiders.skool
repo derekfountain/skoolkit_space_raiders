@@ -1571,7 +1571,8 @@ c25228 LD A,(24593)   ; Pick up screen default attributes
 
 ; Data block at 25282
 b25282 DEFB 0
-@label=_SPACESHIP_XPOS           ; Spaceship xpos, ypos is hardcoded to row 1
+; Spaceship xpos, ypos is hardcoded to row 1
+@label=_SPACESHIP_XPOS
  25283 DEFB 0
  25284 DEFB 0
 @label=_SPACESHIP_SOUND_PULSE
@@ -1827,7 +1828,7 @@ c25708 LD A,4        ; Up to 4 alien bullets in play
 ;
 ; I:IX Pointer to alien bullet structure
 ; O:IX Pointer to next alien bullet structure
-; O: Z flag set when last bullet is cleared
+; (O:Z80 Z flag) set when last bullet is cleared
 @label=next_alien_bullet
 c25737 INC IX        ; {Alien bullet structure is
  25739 INC IX        ;  just 2 bytes long}
@@ -1856,7 +1857,7 @@ c25737 INC IX        ; {Alien bullet structure is
 ; Used by the routine at #R25708.
 ;
 ; I:IX A slot in the #R24644 array which can have a new alien bullet
-; I: #R24612 Alien bullet fire rate
+; (I:#R24612) Alien bullet fire rate
 @label=generate_alien_bullets
 c25749 CALL 32059    ; Churn the "randomisation"
  25752 LD A,(32055)  ; Pick up barrier cycler
@@ -2332,9 +2333,9 @@ c26320 LD B,32       ; 2 UDGs to clear, 16 bytes each
 ; .
 ; Used by the routine at #R26225.
 ;
-; I: #R26100 Player bullet cx,cy values
-; I: #R26102 Points to explosion graphic, top half, 2 UDGs wide
-; I: #R26104 Points to explosion graphic, bottom half, 2 UDGs wide
+; (I:#R26100) Player bullet cx,cy values
+; (I:#R26102) Points to explosion graphic, top half, 2 UDGs wide
+; (I:#R26104) Points to explosion graphic, bottom half, 2 UDGs wide
 @label=draw_alien_explosion
 c26337 LD BC,(26100) ; Bullet cx,cy, that's the explosion place
                      ; 26101 is ypos, goes into B, 26100 is xpos goes into C
@@ -2375,8 +2376,8 @@ c26337 LD BC,(26100) ; Bullet cx,cy, that's the explosion place
 ;.
 ; Used by the routine at #R26225.
 ;
-; I: #R26099 holds row of alien that has been hit
-; I: #R26098 holds cx value of hit alien, so 0 to 21.
+; (I:#R26099) holds row of alien that has been hit
+; (I:#R26098) holds cx value of hit alien, so 0 to 21.
 @label=recalc_horde_stats
 ;
 ; Start by decrementing the number of aliens in the
@@ -3588,9 +3589,9 @@ b30760 DEFB 140,54,0,33,61,140,195,139
 ;.
 ; There's a chunk of unused code near the top of this function.
 ;
-; I: #R24632 Index of the band of aliens to deal with this time
-; I: #R24633 Flag set 0 if the aliens are moving sideways, 1 if they're moving downwards
-; I: #R24635 Alien horde direction, 1 or -1
+; (I:#R24632) Index of the band of aliens to deal with this time
+; (I:#R24633) Flag set 0 if the aliens are moving sideways, 1 if they're moving downwards
+; (I:#R24635) Alien horde direction, 1 or -1
 @label=move_aliens
 c30857 LD A,(24632)  ; Pick up band to deal with this iteration
  30860 LD B,A        ; {If the band to deal with is lower than
@@ -3710,7 +3711,7 @@ c30857 LD A,(24632)  ; Pick up band to deal with this iteration
 ; .
 ; Used by the routine at #R30857.
 ;
-; I: #31109 Data of alien row to move down, starts cx,cy
+; I:#31109 Data of alien row to move down, starts cx,cy
 @label=move_one_row_aliens_down
 c30995 CALL 31987       ; Sound burbler, blip as row is moved down
  30998 DEFB 8,250,0     ;
@@ -3904,11 +3905,11 @@ c31198 CALL 31303    ; Set attribute band on screen
 ;.
 ; Used by the routine at #R31198.
 ;
-; I: #R31116 Screen address to draw to
-; I: #R31114 Sprite data to use
-; I: #R31111 Number of left side scans to zero
-; I: #R31112 Number of alien scans to draw
-; I: #R31113 Number of right side scans to zero
+; (I:#R31116) Screen address to draw to
+; (I:#R31114) Sprite data to use
+; (I:#R31111) Number of left side scans to zero
+; (I:#R31112) Number of alien scans to draw
+; (I:#R31113) Number of right side scans to zero
 @label=draw_alien_sprite_scan
 c31257 LD DE,(31116) ; Screen address from here
  31261 LD A,(31111)  ; A is number of left side bytes to zero out
@@ -4115,8 +4116,8 @@ b31509 DEFB 0
 ;
 ; I:B Leading tip of bullet screen location ypos
 ; I:C Leading tip of bullet screen location xpos
-; O: Z flag set if no barrier hit and the bullet is still in flight
-; O: NZ if barrier has been hit
+; O:Z flag set if no barrier hit and the bullet is still in flight
+; O:NZ if barrier has been hit
 @label=bullet_barrier_hit
 c31527 LD A,(24610)  ; {Return immediately if the barriers are suppressed
  31530 OR A          ;

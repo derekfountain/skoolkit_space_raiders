@@ -1,8 +1,14 @@
 all:space_raiders/index.html
 
 space_raiders/index.html:space_raiders.skool space_raiders.ref
-	skool2html.py --rebuild-images --asm-labels -a \
+	skool2html.py --rebuild-images --asm-labels --theme wide -a \
 			space_raiders.skool space_raiders.ref
+
+space_raiders.asm:space_raiders.skool
+	skool2asm.py --set handle-unsupported-macros=1 --set line-width=132 space_raiders.skool > space_raiders.asm
+
+space_raiders.tap:space_raiders.asm
+	pasmo --tap space_raiders.asm space_raiders.tap
 
 .PHONY: exportctl
 exportctl:
